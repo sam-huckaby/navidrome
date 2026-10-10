@@ -56,7 +56,6 @@ const createAdminStore = ({
     throttle(() => {
       const state = store.getState()
       saveState({
-        theme: state.theme,
         library: state.library,
         player: (({ queue, volume, savedPlayIndex }) => ({
           queue,

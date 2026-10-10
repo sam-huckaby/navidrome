@@ -109,7 +109,7 @@ describe('ArtistActions', () => {
         expect(mockGetList).toHaveBeenCalledWith('song', {
           pagination: { page: 1, perPage: 500 },
           sort: { field: 'random', order: 'ASC' },
-          filter: { album_artist_id: 'ar1', missing: false },
+          filter: { album_artist_id: 'ar1', missing: false, audiobook: false },
         }),
       )
       expect(mockDispatch).toHaveBeenCalled()

@@ -1,5 +1,4 @@
 export * from './libraryReducer'
-export * from './themeReducer'
 export * from './dialogReducer'
 export * from './playerReducer'
 export * from './albumView'

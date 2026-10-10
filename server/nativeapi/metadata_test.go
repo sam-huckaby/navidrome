@@ -1,9 +1,14 @@
 package nativeapi
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"os"
+	"path/filepath"
 	"slices"
 	"sync"
 
@@ -17,6 +22,7 @@ import (
 	"github.com/navidrome/navidrome/tests"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"go.senan.xyz/taglib"
 )
 
 type fakeProvider struct {
@@ -82,6 +88,166 @@ var _ = Describe("Metadata API", func() {
 		Expect(err).ToNot(HaveOccurred())
 		userToken, err = auth.CreateToken(&regularUser)
 		Expect(err).ToNot(HaveOccurred())
+	})
+
+	Describe("album tag overrides", func() {
+		BeforeEach(func() {
+			files := tests.CreateMockMediaFileRepo()
+			files.SetData(model.MediaFiles{{ID: "mf-1", AlbumID: "al-1", Album: "Kid A", Title: "Everything In Its Right Place", LibraryID: 1,
+				Tags: model.Tags{model.TagGenre: {"Rock"}}}})
+			ds.MockedMediaFile = files
+			ds.MockedTag = &tests.MockTagRepo{}
+		})
+
+		It("allows admins to change album genres without changing song tags and to restore the originals", func() {
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, createAuthenticatedRequest("PUT", "/album/al-1/tags", bytes.NewBufferString(`{"genre":["Jazz","Electronic"],"mood":["Calm"]}`), adminToken))
+			Expect(w.Code).To(Equal(http.StatusNoContent), w.Body.String())
+			album, err := albumRepo.Get(ctx, "al-1")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(album.Tags[model.TagGenre]).To(Equal([]string{"Jazz", "Electronic"}))
+			Expect(album.Tags[model.TagMood]).To(Equal([]string{"Calm"}))
+			file, err := ds.MediaFile().GetWithParticipants(ctx, "mf-1")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(file.Tags[model.TagGenre]).To(Equal([]string{"Rock"}))
+
+			w = httptest.NewRecorder()
+			router.ServeHTTP(w, createAuthenticatedRequest("DELETE", "/album/al-1/tags", nil, adminToken))
+			Expect(w.Code).To(Equal(http.StatusNoContent), w.Body.String())
+			Expect(album.Tags[model.TagGenre]).To(Equal([]string{"Rock"}))
+			Expect(album.Tags[model.TagMood]).To(BeEmpty())
+		})
+
+		It("rejects disallowed tags and denies edits by non-admins", func() {
+			for _, body := range []string{`{"artist":["Someone"]}`, `{"genre":[""]}`, `{"genre":"Rock"}`} {
+				w := httptest.NewRecorder()
+				router.ServeHTTP(w, createAuthenticatedRequest("PUT", "/album/al-1/tags", bytes.NewBufferString(body), adminToken))
+				Expect(w.Code).To(Equal(http.StatusBadRequest), body)
+			}
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, createAuthenticatedRequest("PUT", "/album/al-1/tags", bytes.NewBufferString(`{"genre":["Jazz"]}`), userToken))
+			Expect(w.Code).To(Equal(http.StatusForbidden))
+		})
+	})
+
+	Describe("audiobook classification and listening position", func() {
+		BeforeEach(func() {
+			files := tests.CreateMockMediaFileRepo()
+			files.SetData(model.MediaFiles{{ID: "chapter-1", AlbumID: "al-1", Title: "Chapter 1", Duration: 120}})
+			ds.MockedMediaFile = files
+		})
+
+		It("lets admins classify an album while readers independently save chapter progress", func() {
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, createAuthenticatedRequest("PUT", "/album/al-1/audiobook", bytes.NewBufferString(`{"isAudiobook":true}`), userToken))
+			Expect(w.Code).To(Equal(http.StatusForbidden))
+
+			w = httptest.NewRecorder()
+			router.ServeHTTP(w, createAuthenticatedRequest("PUT", "/album/al-1/audiobook", bytes.NewBufferString(`{"isAudiobook":true}`), adminToken))
+			Expect(w.Code).To(Equal(http.StatusNoContent), w.Body.String())
+			album, err := albumRepo.Get(ctx, "al-1")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(album.IsAudiobook).To(BeTrue())
+
+			w = httptest.NewRecorder()
+			router.ServeHTTP(w, createAuthenticatedRequest("PUT", "/audiobook/al-1/progress", bytes.NewBufferString(`{"trackId":"chapter-1","positionMs":45000}`), userToken))
+			Expect(w.Code).To(Equal(http.StatusNoContent), w.Body.String())
+			w = httptest.NewRecorder()
+			router.ServeHTTP(w, createAuthenticatedRequest("GET", "/audiobook/al-1/progress", nil, userToken))
+			Expect(w.Code).To(Equal(http.StatusOK))
+			Expect(w.Body.String()).To(ContainSubstring(`"positionMs":45000`))
+			w = httptest.NewRecorder()
+			router.ServeHTTP(w, createAuthenticatedRequest("GET", "/audiobook/al-1/progress", nil, adminToken))
+			Expect(w.Code).To(Equal(http.StatusOK))
+			Expect(w.Body.String()).To(ContainSubstring(`"trackId":""`))
+
+			w = httptest.NewRecorder()
+			router.ServeHTTP(w, createAuthenticatedRequest("PUT", "/audiobook/al-1/progress", bytes.NewBufferString(`{"trackId":"wrong","positionMs":4000}`), userToken))
+			Expect(w.Code).To(Equal(http.StatusBadRequest))
+		})
+	})
+
+	Describe("music folder uploads", func() {
+		var libraryPath string
+		BeforeEach(func() {
+			base := GinkgoT().TempDir()
+			libraryPath = filepath.Join(base, "library")
+			Expect(os.Mkdir(libraryPath, 0755)).To(Succeed())
+			conf.Server.DataFolder = conf.NewDir(filepath.Join(base, "data"))
+			libs := &tests.MockLibraryRepo{}
+			libs.SetData(model.Libraries{{ID: 1, Name: "Music", Path: libraryPath}})
+			ds.MockedLibrary = libs
+		})
+
+		It("allows admin uploads, rejects traversal, imports audio and skips duplicates", func() {
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, createAuthenticatedRequest("GET", "/music-upload/status", nil, userToken))
+			Expect(w.Code).To(Equal(http.StatusForbidden))
+			w = httptest.NewRecorder()
+			router.ServeHTTP(w, createAuthenticatedRequest("GET", "/music-upload/status", nil, adminToken))
+			Expect(w.Code).To(Equal(http.StatusOK))
+			Expect(w.Body.String()).To(ContainSubstring("fpcalcInstalled"))
+
+			w = httptest.NewRecorder()
+			router.ServeHTTP(w, createAuthenticatedRequest("POST", "/music-upload", bytes.NewBufferString(`{"libraryId":1}`), userToken))
+			Expect(w.Code).To(Equal(http.StatusForbidden))
+
+			w = httptest.NewRecorder()
+			router.ServeHTTP(w, createAuthenticatedRequest("POST", "/music-upload", bytes.NewBufferString(`{"libraryId":1}`), adminToken))
+			Expect(w.Code).To(Equal(http.StatusOK), w.Body.String())
+			var created struct {
+				ID string `json:"id"`
+			}
+			Expect(json.Unmarshal(w.Body.Bytes(), &created)).To(Succeed())
+			Expect(created.ID).ToNot(BeEmpty())
+
+			w = httptest.NewRecorder()
+			router.ServeHTTP(w, createAuthenticatedRequest("PUT", "/music-upload/"+created.ID+"/file?path=..%2Foutside.mp3", bytes.NewBufferString("bad"), adminToken))
+			Expect(w.Code).To(Equal(http.StatusBadRequest))
+
+			audio, err := os.ReadFile("tests/fixtures/test.mp3")
+			Expect(err).ToNot(HaveOccurred())
+			rel := "Selected Album/test.mp3"
+			w = httptest.NewRecorder()
+			router.ServeHTTP(w, createAuthenticatedRequest("PUT", "/music-upload/"+created.ID+"/file?path="+url.QueryEscape(rel), bytes.NewBuffer(audio), adminToken))
+			Expect(w.Code).To(Equal(http.StatusNoContent), w.Body.String())
+			cover, err := os.ReadFile("tests/fixtures/artist/an-album/cover.jpg")
+			Expect(err).ToNot(HaveOccurred())
+			w = httptest.NewRecorder()
+			router.ServeHTTP(w, createAuthenticatedRequest("PUT", "/music-upload/"+created.ID+"/file?path="+url.QueryEscape("Selected Album/cover.jpg"), bytes.NewBuffer(cover), adminToken))
+			Expect(w.Code).To(Equal(http.StatusNoContent), w.Body.String())
+
+			w = httptest.NewRecorder()
+			router.ServeHTTP(w, createAuthenticatedRequest("GET", "/music-upload/"+created.ID+"/preview", nil, adminToken))
+			Expect(w.Code).To(Equal(http.StatusOK), w.Body.String())
+			Expect(w.Body.String()).To(ContainSubstring(rel))
+
+			payload := `{"tracks":[{"path":"Selected Album/test.mp3","title":"Song","artist":"Alice","album":"My Album","albumArtist":"Alice","isAudiobook":true}]}`
+			w = httptest.NewRecorder()
+			router.ServeHTTP(w, createAuthenticatedRequest("POST", "/music-upload/"+created.ID+"/import", bytes.NewBufferString(payload), adminToken))
+			Expect(w.Code).To(Equal(http.StatusOK), w.Body.String())
+			Expect(w.Body.String()).To(ContainSubstring("test.mp3"))
+			bookTrack := filepath.Join(libraryPath, "Alice", "My Album", "test.mp3")
+			_, err = os.Stat(bookTrack)
+			Expect(err).ToNot(HaveOccurred())
+			tags, err := taglib.ReadTags(bookTrack)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(firstUploadTag(tags, "RELEASETYPE")).To(Equal("audiobook"))
+			_, err = os.Stat(filepath.Join(libraryPath, "Alice", "My Album", "cover.jpg"))
+			Expect(err).ToNot(HaveOccurred())
+
+			w = httptest.NewRecorder()
+			router.ServeHTTP(w, createAuthenticatedRequest("POST", "/music-upload", bytes.NewBufferString(`{"libraryId":1}`), adminToken))
+			Expect(w.Code).To(Equal(http.StatusOK))
+			Expect(json.Unmarshal(w.Body.Bytes(), &created)).To(Succeed())
+			w = httptest.NewRecorder()
+			router.ServeHTTP(w, createAuthenticatedRequest("PUT", "/music-upload/"+created.ID+"/file?path="+url.QueryEscape(rel), bytes.NewBuffer(audio), adminToken))
+			Expect(w.Code).To(Equal(http.StatusNoContent))
+			w = httptest.NewRecorder()
+			router.ServeHTTP(w, createAuthenticatedRequest("POST", "/music-upload/"+created.ID+"/import", bytes.NewBufferString(payload), adminToken))
+			Expect(w.Code).To(Equal(http.StatusOK), w.Body.String())
+			Expect(w.Body.String()).To(ContainSubstring(`"skipped":["Selected Album/test.mp3"]`))
+		})
 	})
 
 	Describe("POST /api/metadata/{kind}/{id}/refresh", func() {

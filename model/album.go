@@ -33,6 +33,7 @@ type Album struct {
 	OriginalDate         string   `structs:"original_date" json:"originalDate,omitempty"`
 	ReleaseDate          string   `structs:"release_date" json:"releaseDate,omitempty"`
 	Compilation          bool     `structs:"compilation" json:"compilation"`
+	IsAudiobook          bool     `structs:"is_audiobook" json:"isAudiobook"`
 	Comment              string   `structs:"comment" json:"comment,omitempty"`
 	SongCount            int      `structs:"song_count" json:"songCount"`
 	Duration             float32  `structs:"duration" json:"duration"`
@@ -139,6 +140,13 @@ type AlbumCursor iter.Seq2[Album, error]
 
 type AlbumRepository interface {
 	rest.Repository[Album]
+	SetAudiobookOverride(ctx context.Context, id string, audiobook bool) error
+	ApplyAudiobookOverride(ctx context.Context, album *Album) error
+	GetAudiobookProgress(ctx context.Context, albumID, userID string) (*AudiobookProgress, error)
+	SaveAudiobookProgress(ctx context.Context, progress AudiobookProgress) error
+	GetTagOverrides(ctx context.Context, id string) (Tags, error)
+	SetTagOverrides(ctx context.Context, id string, tags Tags) error
+	ApplyTagOverrides(ctx context.Context, album *Album) error
 	CountAll(ctx context.Context, options ...QueryOptions) (int64, error)
 	Exists(ctx context.Context, id string) (bool, error)
 	Put(ctx context.Context, m *Album) error
@@ -160,4 +168,13 @@ type AlbumRepository interface {
 
 	AnnotatedRepository
 	SearchableRepository[Albums]
+}
+
+type AudiobookProgress struct {
+	AlbumID    string    `json:"albumId"`
+	UserID     string    `json:"-"`
+	TrackID    string    `json:"trackId"`
+	PositionMs int64     `json:"positionMs"`
+	Completed  bool      `json:"completed"`
+	UpdatedAt  time.Time `json:"updatedAt"`
 }

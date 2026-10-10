@@ -4,7 +4,12 @@ export const loadState = () => {
     if (serializedState === null) {
       return undefined
     }
-    return JSON.parse(serializedState)
+    const state = JSON.parse(serializedState)
+    // A saved choice from the old theme picker must not survive the migration.
+    if (state && typeof state === 'object') {
+      delete state.theme
+    }
+    return state
   } catch (err) {
     return undefined
   }

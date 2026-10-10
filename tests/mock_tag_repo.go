@@ -24,3 +24,10 @@ func (r *MockTagRepo) GetAll(_ context.Context, _ model.TagName, options ...mode
 	}
 	return r.Data, nil
 }
+
+func (r *MockTagRepo) Add(_ context.Context, _ int, tags ...model.Tag) error {
+	r.Data = append(r.Data, tags...)
+	return r.Err
+}
+
+func (r *MockTagRepo) UpdateCounts(context.Context) error { return r.Err }

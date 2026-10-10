@@ -13,7 +13,13 @@ import {
   MdSupervisorAccount,
 } from 'react-icons/md'
 import { useSelector } from 'react-redux'
-import { makeStyles, MenuItem, ListItemIcon, Divider } from '@material-ui/core'
+import {
+  makeStyles,
+  MenuItem,
+  ListItemIcon,
+  Divider,
+  Typography,
+} from '@material-ui/core'
 import ViewListIcon from '@material-ui/icons/ViewList'
 import { Dialogs } from '../dialogs/Dialogs'
 import { AboutDialog, QuickConnectDialog } from '../dialogs'
@@ -22,6 +28,8 @@ import ActivityPanel from './ActivityPanel'
 import NowPlayingPanel from './NowPlayingPanel'
 import UserMenu from './UserMenu'
 import config from '../config'
+import MusicBrand from '../icons/MusicBrand'
+import FingerprintWarning from './FingerprintWarning'
 
 const useStyles = makeStyles(
   (theme) => ({
@@ -128,6 +136,7 @@ const CustomUserMenu = ({ onClick, ...rest }) => {
 
   return (
     <>
+      <FingerprintWarning />
       {config.devActivityPanel &&
         permissions === 'admin' &&
         config.enableNowPlaying && <NowPlayingPanel />}
@@ -159,7 +168,10 @@ const CustomUserMenu = ({ onClick, ...rest }) => {
 }
 
 const AppBar = (props) => (
-  <RAAppBar {...props} container={Fragment} userMenu={<CustomUserMenu />} />
+  <RAAppBar {...props} container={Fragment} userMenu={<CustomUserMenu />}>
+    <MusicBrand />
+    <Typography id="react-admin-title" className="music-page-title" />
+  </RAAppBar>
 )
 
 export default AppBar

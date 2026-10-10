@@ -3,6 +3,8 @@ package tests
 import (
 	"context"
 	"errors"
+	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -19,6 +21,9 @@ func CreateMockAlbumRepo() *MockAlbumRepo {
 type MockAlbumRepo struct {
 	model.AlbumRepository
 	Data                    map[string]*model.Album
+	TagOverrides            map[string]model.Tags
+	AudiobookOverrides      map[string]bool
+	AudiobookProgress       map[string]model.AudiobookProgress
 	All                     model.Albums
 	Err                     bool
 	Options                 model.QueryOptions
@@ -26,6 +31,69 @@ type MockAlbumRepo struct {
 	SearchQuery             string            // last query passed to Search
 	ReassignAnnotationCalls map[string]string // prevID -> newID
 	CopyAttributesCalls     map[string]string // fromID -> toID
+}
+
+func (m *MockAlbumRepo) SetAudiobookOverride(_ context.Context, id string, audiobook bool) error {
+	if m.AudiobookOverrides == nil {
+		m.AudiobookOverrides = map[string]bool{}
+	}
+	m.AudiobookOverrides[id] = audiobook
+	if album := m.Data[id]; album != nil {
+		album.IsAudiobook = audiobook
+	}
+	return nil
+}
+
+func (m *MockAlbumRepo) ApplyAudiobookOverride(_ context.Context, album *model.Album) error {
+	album.IsAudiobook = slices.ContainsFunc(album.Tags.Values(model.TagReleaseType),
+		func(value string) bool { return strings.EqualFold(value, "audiobook") })
+	if kind, found := m.AudiobookOverrides[album.ID]; found {
+		album.IsAudiobook = kind
+	}
+	return nil
+}
+
+func (m *MockAlbumRepo) GetAudiobookProgress(_ context.Context, albumID, userID string) (*model.AudiobookProgress, error) {
+	progress, found := m.AudiobookProgress[albumID+":"+userID]
+	if !found {
+		return nil, nil
+	}
+	return &progress, nil
+}
+
+func (m *MockAlbumRepo) SaveAudiobookProgress(_ context.Context, progress model.AudiobookProgress) error {
+	if m.AudiobookProgress == nil {
+		m.AudiobookProgress = map[string]model.AudiobookProgress{}
+	}
+	m.AudiobookProgress[progress.AlbumID+":"+progress.UserID] = progress
+	return nil
+}
+
+func (m *MockAlbumRepo) GetTagOverrides(_ context.Context, id string) (model.Tags, error) {
+	return m.TagOverrides[id], nil
+}
+
+func (m *MockAlbumRepo) SetTagOverrides(_ context.Context, id string, tags model.Tags) error {
+	if m.TagOverrides == nil {
+		m.TagOverrides = make(map[string]model.Tags)
+	}
+	m.TagOverrides[id] = tags
+	return nil
+}
+
+func (m *MockAlbumRepo) ApplyTagOverrides(_ context.Context, album *model.Album) error {
+	for name, values := range m.TagOverrides[album.ID] {
+		if len(values) == 0 {
+			delete(album.Tags, name)
+		} else {
+			if album.Tags == nil {
+				album.Tags = model.Tags{}
+			}
+			album.Tags[name] = values
+		}
+	}
+	album.Genre, album.Genres = album.Tags.ToGenres()
+	return nil
 }
 
 func (m *MockAlbumRepo) SetError(err bool) {

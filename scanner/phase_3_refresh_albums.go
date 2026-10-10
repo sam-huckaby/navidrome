@@ -4,6 +4,7 @@ package scanner
 import (
 	"context"
 	"fmt"
+	"slices"
 	"sync/atomic"
 	"time"
 
@@ -89,13 +90,32 @@ func (p *phaseRefreshAlbums) filterUnmodified(album *model.Album) (*model.Album,
 	}
 
 	newAlbum := mfs.ToAlbum()
-	if album.Equals(newAlbum) {
+	if err := p.ds.Album().ApplyTagOverrides(p.ctx, &newAlbum); err != nil {
+		return nil, fmt.Errorf("applying album tag overrides: %w", err)
+	}
+	if err := p.ds.Album().ApplyAudiobookOverride(p.ctx, &newAlbum); err != nil {
+		return nil, fmt.Errorf("applying audiobook classification: %w", err)
+	}
+	// Album.Equals ignores tags, but changes to file tags must still be persisted.
+	if album.Equals(newAlbum) && sameTags(album.Tags, newAlbum.Tags) {
 		log.Trace("Scanner: album is up to date. Skipping", "album_id", album.ID,
 			"name", album.Name, "songCount", album.SongCount, "updatedAt", album.UpdatedAt)
 		p.skipped.Add(1)
 		return nil, nil
 	}
 	return &newAlbum, nil
+}
+
+func sameTags(a, b model.Tags) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for name, values := range a {
+		if !slices.Equal(values, b[name]) {
+			return false
+		}
+	}
+	return true
 }
 
 func (p *phaseRefreshAlbums) refreshAlbum(album *model.Album) (*model.Album, error) {

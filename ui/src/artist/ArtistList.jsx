@@ -36,7 +36,7 @@ import { DraggableTypes } from '../consts'
 import en from '../i18n/en.json'
 import { formatBytes } from '../utils/index.js'
 
-const useStyles = makeStyles({
+const useStyles = makeStyles((theme) => ({
   contextHeader: {
     marginLeft: '3px',
     marginTop: '-2px',
@@ -44,10 +44,11 @@ const useStyles = makeStyles({
   },
   row: {
     '& td': {
-      paddingTop: '4px !important',
-      paddingBottom: '4px !important',
+      paddingTop: '12px !important',
+      paddingBottom: '12px !important',
     },
     '&:hover': {
+      backgroundColor: `${theme.palette.background.paper} !important`,
       '& $contextMenu': {
         visibility: 'visible',
       },
@@ -65,7 +66,7 @@ const useStyles = makeStyles({
   ratingField: {
     visibility: 'hidden',
   },
-})
+}))
 
 const ArtistFilter = (props) => {
   const translate = useTranslate()
@@ -210,6 +211,7 @@ const ArtistList = (props) => {
     <>
       <List
         {...props}
+        filter={{ music_only: true }}
         sort={{ field: 'name', order: 'ASC' }}
         exporter={false}
         bulkActionButtons={false}

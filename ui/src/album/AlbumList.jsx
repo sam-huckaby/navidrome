@@ -256,7 +256,7 @@ const AlbumList = (props) => {
         {...props}
         exporter={false}
         bulkActionButtons={false}
-        filter={{ seed }}
+        filter={{ seed, audiobook: false }}
         actions={<AlbumListActions />}
         filters={<AlbumFilter />}
         perPage={perPage}

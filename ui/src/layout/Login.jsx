@@ -16,7 +16,7 @@ import {
   useTranslate,
   useVersion,
 } from 'react-admin'
-import Logo from '../icons/android-icon-192x192.png'
+import { MusicMark } from '../icons/MusicBrand'
 
 import Notification from './Notification'
 import useCurrentTheme from '../themes/useCurrentTheme'
@@ -25,47 +25,80 @@ import { clearQueue } from '../actions'
 import { INSIGHTS_DOC_URL } from '../consts.js'
 
 const useStyles = makeStyles(
-  (theme) => ({
+  () => ({
     main: {
+      display: 'grid',
+      gridTemplateColumns: 'minmax(300px, 1fr) minmax(320px, 1fr)',
+      minHeight: '100vh',
+      background: '#11110f',
+      '@media (max-width: 760px)': { gridTemplateColumns: '1fr' },
+    },
+    story: {
+      position: 'relative',
       display: 'flex',
       flexDirection: 'column',
-      minHeight: '100vh',
+      justifyContent: 'center',
+      padding: 'clamp(40px, 8vw, 120px)',
+      overflow: 'hidden',
+      background:
+        'radial-gradient(circle at 10% 90%, #65482a, transparent 40%), linear-gradient(135deg, #1d1b16, #11110f)',
+      '&:after': {
+        content: '""',
+        position: 'absolute',
+        width: 470,
+        height: 470,
+        right: -180,
+        bottom: -220,
+        borderRadius: '50%',
+        border: '1px solid rgba(230,184,92,.18)',
+        boxShadow:
+          '0 0 0 65px rgba(230,184,92,.04), 0 0 0 140px rgba(230,184,92,.025)',
+        pointerEvents: 'none',
+      },
+      '@media (max-width: 760px)': { minHeight: 220, padding: '36px 28px' },
+    },
+    storyTitle: {
+      fontFamily: '"Newsreader", Georgia, serif',
+      fontSize: 'clamp(54px, 7vw, 100px)',
+      lineHeight: 0.95,
+      letterSpacing: '-.04em',
+      margin: '25px 0 10px',
+      '@media (max-width: 760px)': { fontSize: 52, margin: '12px 0 0' },
+    },
+    panel: {
+      display: 'flex',
+      flexDirection: 'column',
       alignItems: 'center',
-      justifyContent: 'flex-start',
-      background: `url(${config.loginBackgroundURL})`,
-      backgroundRepeat: 'no-repeat',
-      backgroundSize: 'cover',
-      backgroundPosition: 'center',
+      justifyContent: 'center',
+      padding: '40px 24px',
+      background: '#171714',
     },
     card: {
-      minWidth: 300,
-      marginTop: '6em',
+      width: 'min(440px, 100%)',
+      padding: '28px 22px',
       overflow: 'visible',
+      background: '#191916',
+      border: '1px solid rgba(255,255,255,.09)',
     },
     avatar: {
-      margin: '1em',
       display: 'flex',
       justifyContent: 'center',
-      marginTop: '-3em',
-    },
-    icon: {
-      backgroundColor: 'transparent',
-      width: '6.3em',
-      height: '6.3em',
+      marginBottom: 18,
     },
     systemName: {
-      marginTop: '1em',
       display: 'flex',
       justifyContent: 'center',
-      color: '#3f51b5', //theme.palette.grey[500]
+      color: '#f3eee4',
+      fontFamily: '"Newsreader", Georgia, serif',
+      fontSize: 30,
     },
     welcome: {
       marginTop: '1em',
-      padding: '0 1em 1em 1em',
+      padding: '0 1em',
       display: 'flex',
       justifyContent: 'center',
       flexWrap: 'wrap',
-      color: '#3f51b5', //theme.palette.grey[500]
+      color: '#aaa79f',
     },
     form: {
       padding: '0 1em 1em 1em',
@@ -76,7 +109,7 @@ const useStyles = makeStyles(
     actions: {
       padding: '0 1em 1em 1em',
     },
-    button: {},
+    button: { marginTop: 10 },
     systemNameLink: {
       textDecoration: 'none',
     },
@@ -110,6 +143,18 @@ const renderInput = ({
   />
 )
 
+const LoginStory = ({ classes }) => (
+  <aside className={classes.story}>
+    <MusicMark large />
+    <h1 className={classes.storyTitle}>
+      Music:
+      <br />
+      Server.
+    </h1>
+    <p>Your music, from anywhere.</p>
+  </aside>
+)
+
 const FormLogin = ({ loading, handleSubmit, validate }) => {
   const translate = useTranslate()
   const classes = useStyles()
@@ -121,64 +166,67 @@ const FormLogin = ({ loading, handleSubmit, validate }) => {
       render={({ handleSubmit }) => (
         <form onSubmit={handleSubmit} noValidate>
           <div className={classes.main}>
-            <Card className={classes.card}>
-              <div className={classes.avatar}>
-                <img src={Logo} className={classes.icon} alt={'logo'} />
-              </div>
-              <div className={classes.systemName}>
-                <a
-                  href="https://www.navidrome.org"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={classes.systemNameLink}
-                >
-                  Navidrome
-                </a>
-              </div>
-              {config.welcomeMessage && (
-                <div
-                  className={classes.welcome}
-                  // Use dangerouslySetInnerHTML to allow admins to configure
-                  // whatever content they want
-                  dangerouslySetInnerHTML={{ __html: config.welcomeMessage }}
-                />
-              )}
-              <div className={classes.form}>
-                <div className={classes.input}>
-                  <Field
-                    autoFocus
-                    name="username"
-                    component={renderInput}
-                    label={translate('ra.auth.username')}
-                    disabled={loading}
-                    spellCheck={false}
-                  />
+            <LoginStory classes={classes} />
+            <div className={classes.panel}>
+              <Card className={classes.card}>
+                <div className={classes.avatar}>
+                  <MusicMark large />
                 </div>
-                <div className={classes.input}>
-                  <Field
-                    name="password"
-                    component={renderInput}
-                    label={translate('ra.auth.password')}
-                    type="password"
-                    disabled={loading}
-                  />
+                <div className={classes.systemName}>
+                  <a
+                    href="https://www.navidrome.org"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={classes.systemNameLink}
+                  >
+                    Music: Server
+                  </a>
                 </div>
-              </div>
-              <CardActions className={classes.actions}>
-                <Button
-                  variant="contained"
-                  type="submit"
-                  color="primary"
-                  disabled={loading}
-                  className={classes.button}
-                  fullWidth
-                >
-                  {loading && <CircularProgress size={25} thickness={2} />}
-                  {translate('ra.auth.sign_in')}
-                </Button>
-              </CardActions>
-            </Card>
-            <Notification />
+                {config.welcomeMessage && (
+                  <div
+                    className={classes.welcome}
+                    // Use dangerouslySetInnerHTML to allow admins to configure
+                    // whatever content they want
+                    dangerouslySetInnerHTML={{ __html: config.welcomeMessage }}
+                  />
+                )}
+                <div className={classes.form}>
+                  <div className={classes.input}>
+                    <Field
+                      autoFocus
+                      name="username"
+                      component={renderInput}
+                      label={translate('ra.auth.username')}
+                      disabled={loading}
+                      spellCheck={false}
+                    />
+                  </div>
+                  <div className={classes.input}>
+                    <Field
+                      name="password"
+                      component={renderInput}
+                      label={translate('ra.auth.password')}
+                      type="password"
+                      disabled={loading}
+                    />
+                  </div>
+                </div>
+                <CardActions className={classes.actions}>
+                  <Button
+                    variant="contained"
+                    type="submit"
+                    color="primary"
+                    disabled={loading}
+                    className={classes.button}
+                    fullWidth
+                  >
+                    {loading && <CircularProgress size={25} thickness={2} />}
+                    {translate('ra.auth.sign_in')}
+                  </Button>
+                </CardActions>
+              </Card>
+              <Notification />
+            </div>
           </div>
         </form>
       )}
@@ -253,62 +301,65 @@ const FormSignUp = ({ loading, handleSubmit, validate }) => {
       render={({ handleSubmit }) => (
         <form onSubmit={handleSubmit} noValidate>
           <div className={classes.main}>
-            <Card className={classes.card}>
-              <div className={classes.avatar}>
-                <img src={Logo} className={classes.icon} alt={'logo'} />
-              </div>
-              <div className={classes.welcome}>
-                {translate('ra.auth.welcome1')}
-              </div>
-              <div className={classes.welcome}>
-                {translate('ra.auth.welcome2')}
-              </div>
-              <div className={classes.form}>
-                <div className={classes.input}>
-                  <Field
-                    autoFocus
-                    name="username"
-                    component={renderInput}
-                    label={translate('ra.auth.username')}
-                    disabled={loading}
-                    spellCheck={false}
-                  />
+            <LoginStory classes={classes} />
+            <div className={classes.panel}>
+              <Card className={classes.card}>
+                <div className={classes.avatar}>
+                  <MusicMark large />
                 </div>
-                <div className={classes.input}>
-                  <Field
-                    name="password"
-                    component={renderInput}
-                    label={translate('ra.auth.password')}
-                    type="password"
-                    disabled={loading}
-                  />
+                <div className={classes.welcome}>
+                  {translate('ra.auth.welcome1')}
                 </div>
-                <div className={classes.input}>
-                  <Field
-                    name="confirmPassword"
-                    component={renderInput}
-                    label={translate('ra.auth.confirmPassword')}
-                    type="password"
-                    disabled={loading}
-                  />
+                <div className={classes.welcome}>
+                  {translate('ra.auth.welcome2')}
                 </div>
-              </div>
-              <CardActions className={classes.actions}>
-                <Button
-                  variant="contained"
-                  type="submit"
-                  color="primary"
-                  disabled={loading}
-                  className={classes.button}
-                  fullWidth
-                >
-                  {loading && <CircularProgress size={25} thickness={2} />}
-                  {translate('ra.auth.buttonCreateAdmin')}
-                </Button>
-              </CardActions>
-              <InsightsNotice url={INSIGHTS_DOC_URL} />
-            </Card>
-            <Notification />
+                <div className={classes.form}>
+                  <div className={classes.input}>
+                    <Field
+                      autoFocus
+                      name="username"
+                      component={renderInput}
+                      label={translate('ra.auth.username')}
+                      disabled={loading}
+                      spellCheck={false}
+                    />
+                  </div>
+                  <div className={classes.input}>
+                    <Field
+                      name="password"
+                      component={renderInput}
+                      label={translate('ra.auth.password')}
+                      type="password"
+                      disabled={loading}
+                    />
+                  </div>
+                  <div className={classes.input}>
+                    <Field
+                      name="confirmPassword"
+                      component={renderInput}
+                      label={translate('ra.auth.confirmPassword')}
+                      type="password"
+                      disabled={loading}
+                    />
+                  </div>
+                </div>
+                <CardActions className={classes.actions}>
+                  <Button
+                    variant="contained"
+                    type="submit"
+                    color="primary"
+                    disabled={loading}
+                    className={classes.button}
+                    fullWidth
+                  >
+                    {loading && <CircularProgress size={25} thickness={2} />}
+                    {translate('ra.auth.buttonCreateAdmin')}
+                  </Button>
+                </CardActions>
+                <InsightsNotice url={INSIGHTS_DOC_URL} />
+              </Card>
+              <Notification />
+            </div>
           </div>
         </form>
       )}

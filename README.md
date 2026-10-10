@@ -33,6 +33,24 @@ please file a [GitHub issue](https://github.com/navidrome/navidrome/issues) or j
 
 See instructions on the [project's website](https://www.navidrome.org/docs/installation/)
 
+### Uploading music from the browser
+
+Administrators can open **Upload Music** in the sidebar, select a local music folder
+and a writable local library, review its metadata, and import its tracks into
+`Artist/Album/` folders. Existing files are skipped. Companion artwork and lyric
+files are kept alongside the tracks. Imported files trigger a library scan.
+Each album can be marked as an audiobook during review. Existing albums can also
+be marked from their album page; audiobooks then appear in the **Audiobooks**
+section instead of the ordinary music browsing lists. Their player remembers the
+last chapter and position separately for each user.
+
+Fingerprint lookup for missing metadata is optional. Install Chromaprint's
+`fpcalc` on the machine running Navidrome with `make setup-fingerprint` (Homebrew
+on macOS or `apt-get` on Debian/Ubuntu), then [register an AcoustID application](https://acoustid.org/new-application)
+and configure `AcoustIDKey` in `navidrome.toml` or `ND_ACOUSTIDKEY` in the
+environment. When either is unavailable, uploads and playback still work;
+administrators see an alert and can enter missing metadata during upload.
+
 ## Cloud Hosting
 
 [PikaPods](https://www.pikapods.com) has partnered with us to offer you an 

@@ -212,6 +212,7 @@ const SongList = (props) => {
     <>
       <List
         {...props}
+        filter={{ audiobook: false }}
         sort={{ field: 'title', order: 'ASC' }}
         exporter={false}
         bulkActionButtons={<SongBulkActions />}

@@ -4,7 +4,7 @@ const useStyle = makeStyles(
   (theme) => ({
     audioTitle: {
       textDecoration: 'none',
-      color: theme.palette.primary.dark,
+      color: theme.palette.text.primary,
     },
     songTitle: {
       fontWeight: 'bold',
@@ -27,6 +27,10 @@ const useStyle = makeStyles(
     },
     player: {
       display: (props) => (props.visible ? 'block' : 'none'),
+      '& .music-player-panel': {
+        fontFamily: '"DM Sans", system-ui, sans-serif',
+        color: theme.palette.text.primary,
+      },
       '@media screen and (max-width:810px)': {
         '& .sound-operation': {
           display: 'none',

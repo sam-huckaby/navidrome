@@ -26,7 +26,7 @@ export const playShuffle = async (dataProvider, dispatch, id) => {
   const res = await dataProvider.getList('song', {
     pagination: { page: 1, perPage: 500 },
     sort: { field: 'random', order: 'ASC' },
-    filter: { album_artist_id: id, missing: false },
+    filter: { album_artist_id: id, missing: false, audiobook: false },
   })
 
   const data = {}

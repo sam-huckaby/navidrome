@@ -1,6 +1,5 @@
 export * from './library'
 export * from './player'
-export * from './themes'
 export * from './albumView'
 export * from './dialogs'
 export * from './replayGain'

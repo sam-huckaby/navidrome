@@ -1,6 +1,6 @@
 // ui/src/album/__tests__/AlbumDetails.test.jsx
 import { describe, test, expect, beforeEach, afterEach } from 'vitest'
-import { render } from '@testing-library/react'
+import { render, within } from '@testing-library/react'
 import { RecordContextProvider } from 'react-admin'
 import { useMediaQuery } from '@material-ui/core'
 import { createTheme, ThemeProvider } from '@material-ui/core/styles'
@@ -24,6 +24,7 @@ vi.mock('react-admin', async () => {
     useDataProvider: () => ({ getOne: vi.fn() }),
     useNotify: () => vi.fn(),
     useRefresh: () => vi.fn(),
+    usePermissions: () => ({ permissions: 'admin' }),
   }
 })
 
@@ -373,6 +374,7 @@ describe('AlbumDetails cover animation', () => {
     songCount: 12,
     duration: 3600,
     size: 102400,
+    genre: 'Christian & Gospel',
   }
   const originalEnableCoverAnimation = config.enableCoverAnimation
 
@@ -409,5 +411,18 @@ describe('AlbumDetails cover animation', () => {
 
     expect(cover).not.toBeNull()
     expect(cover.className).not.toMatch(/noCoverAnimation/)
+  })
+
+  test('places the tag editor alongside the album genre', () => {
+    const { container } = renderAlbum()
+    const genreRow = container.querySelector('[class*="genreRow"]')
+
+    expect(within(genreRow).getByText('Christian & Gospel')).toBeInTheDocument()
+    expect(
+      within(genreRow).getByRole('button', { name: 'Edit album tags' }),
+    ).toBeInTheDocument()
+    expect(
+      within(genreRow).getByRole('button', { name: 'Mark as audiobook' }),
+    ).toBeInTheDocument()
   })
 })

@@ -25,6 +25,9 @@ vi.mock('./NowPlayingPanel', () => ({
 vi.mock('./ActivityPanel', () => ({
   default: () => <div data-testid="activity-panel" />,
 }))
+vi.mock('./FingerprintWarning', () => ({
+  default: () => null,
+}))
 vi.mock('./PersonalMenu', () => ({
   default: () => <div />,
 }))

@@ -27,7 +27,7 @@ import { Artwork } from '../common/Artwork'
 const useStyles = makeStyles(
   (theme) => ({
     root: {
-      margin: '20px',
+      margin: '24px clamp(16px, 3vw, 44px)',
       display: 'grid',
     },
     tileBar: {
@@ -52,7 +52,7 @@ const useStyles = makeStyles(
     },
     albumName: {
       fontSize: '14px',
-      color: theme.palette.type === 'dark' ? '#eee' : 'black',
+      color: theme.palette.text.primary,
       overflow: 'hidden',
       whiteSpace: 'nowrap',
       textOverflow: 'ellipsis',
@@ -62,14 +62,14 @@ const useStyles = makeStyles(
     },
     albumVersion: {
       fontSize: '12px',
-      color: theme.palette.type === 'dark' ? '#c5c5c5' : '#696969',
+      color: theme.palette.text.secondary,
       overflow: 'hidden',
       whiteSpace: 'nowrap',
       textOverflow: 'ellipsis',
     },
     albumSubtitle: {
       fontSize: '12px',
-      color: theme.palette.type === 'dark' ? '#c5c5c5' : '#696969',
+      color: theme.palette.text.secondary,
       overflow: 'hidden',
       whiteSpace: 'nowrap',
       textOverflow: 'ellipsis',
@@ -78,6 +78,8 @@ const useStyles = makeStyles(
       position: 'relative',
       display: 'block',
       textDecoration: 'none',
+      transition: 'transform 180ms ease, filter 180ms ease',
+      '&:hover': { transform: 'translateY(-3px)', filter: 'brightness(1.08)' },
       '&:hover $tileBar, &:focus-within $tileBar': {
         opacity: 1,
         pointerEvents: 'auto',

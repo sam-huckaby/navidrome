@@ -106,6 +106,15 @@ func booleanFilter(field string, value any) Sqlizer {
 	return Eq{field: v == "true"}
 }
 
+// React Admin serializes fixed list filters as query-string values, while
+// internal callers may pass booleans directly.
+func isTrueFilterValue(value any) bool {
+	if b, ok := value.(bool); ok {
+		return b
+	}
+	return strings.EqualFold(fmt.Sprint(value), "true")
+}
+
 func fullTextFilter(tableName string, mbidFields ...string) func(string, any) Sqlizer {
 	return func(field string, value any) Sqlizer {
 		v := strings.ToLower(value.(string))

@@ -70,6 +70,50 @@ var _ = Describe("phaseRefreshAlbums", func() {
 	})
 
 	Describe("filterUnmodified", func() {
+		It("classifies newly uploaded audiobook tags on the first album refresh", func() {
+			album := &model.Album{ID: "book", Name: "A Story", SongCount: 1,
+				FolderIDs: []string{"folder1"}, Discs: model.Discs{1: ""}}
+			mfRepo.SetData(model.MediaFiles{{AlbumID: "book", Album: "A Story", FolderID: "folder1",
+				Tags: model.Tags{model.TagReleaseType: {"audiobook"}}}})
+			result, err := phase.filterUnmodified(album)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(result).ToNot(BeNil())
+			Expect(result.IsAudiobook).To(BeTrue())
+		})
+		It("retains a manually chosen audiobook category after a rescan", func() {
+			album := &model.Album{ID: "book", Name: "A Story", SongCount: 1,
+				FolderIDs: []string{"folder1"}, Discs: model.Discs{1: ""}, IsAudiobook: true}
+			albumRepo.AudiobookOverrides = map[string]bool{"book": true}
+			mfRepo.SetData(model.MediaFiles{{AlbumID: "book", Album: "A Story", FolderID: "folder1"}})
+			result, err := phase.filterUnmodified(album)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(result).To(BeNil())
+		})
+
+		It("preserves an album-only genre override across a rescan", func() {
+			album := &model.Album{ID: "album1", Name: "Album 1", SongCount: 1,
+				FolderIDs: []string{"folder1"}, Discs: model.Discs{1: ""},
+				Tags: model.Tags{model.TagGenre: {"Jazz"}}}
+			albumRepo.TagOverrides = map[string]model.Tags{"album1": {model.TagGenre: {"Jazz"}}}
+			mfRepo.SetData(model.MediaFiles{{AlbumID: "album1", Album: "Album 1", FolderID: "folder1",
+				Tags: model.Tags{model.TagGenre: {"Rock"}}}})
+			result, err := phase.filterUnmodified(album)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(result).To(BeNil())
+		})
+
+		It("updates an album when file-derived tags change even if other fields do not", func() {
+			album := &model.Album{ID: "album1", Name: "Album 1", SongCount: 1,
+				FolderIDs: []string{"folder1"}, Discs: model.Discs{1: ""},
+				Tags: model.Tags{model.TagGenre: {"Rock"}}}
+			mfRepo.SetData(model.MediaFiles{{AlbumID: "album1", Album: "Album 1", FolderID: "folder1",
+				Tags: model.Tags{model.TagGenre: {"Jazz"}}}})
+			result, err := phase.filterUnmodified(album)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(result).ToNot(BeNil())
+			Expect(result.Tags[model.TagGenre]).To(Equal([]string{"Jazz"}))
+		})
+
 		It("filters out unmodified albums", func() {
 			album := &model.Album{ID: "album1", Name: "Album 1", SongCount: 1,
 				FolderIDs: []string{"folder1"}, Discs: model.Discs{1: ""}}

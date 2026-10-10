@@ -2,6 +2,7 @@ package persistence
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -136,6 +137,7 @@ var albumFilters = sync.OnceValue(func() map[string]filterFunc {
 		"genre_id":        genreFilter(AlbumGenres),
 		"role_total_id":   allRolesFilter,
 		"library_id":      libraryIdFilter,
+		"audiobook":       func(_ string, value any) Sqlizer { return Eq{"album.is_audiobook": isTrueFilterValue(value)} },
 	}
 	// Add all album tags as filters
 	for tag := range model.AlbumLevelTags() {
@@ -216,6 +218,131 @@ func (r *albumRepository) Put(ctx context.Context, al *model.Album) error {
 		return err
 	}
 	return r.updateTags(ctx, al.ID, al.Tags)
+}
+
+func (r *albumRepository) SetAudiobookOverride(ctx context.Context, id string, audiobook bool) error {
+	value := 0
+	if audiobook {
+		value = 1
+	}
+	_, err := r.db.NewQuery(`INSERT INTO album_audiobook_override (album_id, is_audiobook)
+		VALUES ({:id},{:value}) ON CONFLICT(album_id) DO UPDATE SET is_audiobook=excluded.is_audiobook`).
+		Bind(dbx.Params{"id": id, "value": value}).Execute()
+	if err != nil {
+		return err
+	}
+	_, err = r.db.NewQuery(`UPDATE album SET is_audiobook={:value} WHERE id={:id}`).
+		Bind(dbx.Params{"id": id, "value": value}).Execute()
+	return err
+}
+
+func (r *albumRepository) ApplyAudiobookOverride(ctx context.Context, album *model.Album) error {
+	album.IsAudiobook = slices.ContainsFunc(album.Tags.Values(model.TagReleaseType),
+		func(value string) bool { return strings.EqualFold(value, "audiobook") })
+	var override struct {
+		Value int `db:"is_audiobook"`
+	}
+	err := r.db.NewQuery(`SELECT is_audiobook FROM album_audiobook_override WHERE album_id={:id}`).
+		Bind(dbx.Params{"id": album.ID}).One(&override)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	album.IsAudiobook = override.Value != 0
+	return nil
+}
+
+func (r *albumRepository) GetAudiobookProgress(ctx context.Context, albumID, userID string) (*model.AudiobookProgress, error) {
+	var row struct {
+		TrackID    string    `db:"track_id"`
+		PositionMs int64     `db:"position_ms"`
+		Completed  bool      `db:"completed"`
+		UpdatedAt  time.Time `db:"updated_at"`
+	}
+	err := r.db.NewQuery(`SELECT track_id, position_ms, completed, updated_at FROM audiobook_progress
+		WHERE album_id={:album} AND user_id={:user}`).
+		Bind(dbx.Params{"album": albumID, "user": userID}).One(&row)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &model.AudiobookProgress{AlbumID: albumID, UserID: userID, TrackID: row.TrackID,
+		PositionMs: row.PositionMs, Completed: row.Completed, UpdatedAt: row.UpdatedAt}, nil
+}
+
+func (r *albumRepository) SaveAudiobookProgress(ctx context.Context, progress model.AudiobookProgress) error {
+	_, err := r.db.NewQuery(`INSERT INTO audiobook_progress (album_id, user_id, track_id, position_ms, completed, updated_at)
+		VALUES ({:album}, {:user}, {:track}, {:position}, {:completed}, {:now})
+		ON CONFLICT(album_id, user_id) DO UPDATE SET track_id=excluded.track_id,
+		position_ms=excluded.position_ms, completed=excluded.completed, updated_at=excluded.updated_at`).
+		Bind(dbx.Params{"album": progress.AlbumID, "user": progress.UserID, "track": progress.TrackID,
+			"position": progress.PositionMs, "completed": progress.Completed, "now": time.Now()}).Execute()
+	return err
+}
+
+// GetTagOverrides returns only fields explicitly edited in Music: Server. An
+// empty slice is an intentional override that clears the file-derived value.
+func (r *albumRepository) GetTagOverrides(ctx context.Context, id string) (model.Tags, error) {
+	var row struct {
+		Tags string `db:"tags"`
+	}
+	err := r.db.NewQuery("SELECT tags FROM album_tag_override WHERE album_id={:id}").
+		Bind(dbx.Params{"id": id}).One(&row)
+	if errors.Is(err, sql.ErrNoRows) {
+		return model.Tags{}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	var tags model.Tags
+	if err := json.Unmarshal([]byte(row.Tags), &tags); err != nil {
+		return nil, fmt.Errorf("decoding album tag overrides: %w", err)
+	}
+	return tags, nil
+}
+
+func (r *albumRepository) SetTagOverrides(ctx context.Context, id string, tags model.Tags) error {
+	if len(tags) == 0 {
+		_, err := r.db.NewQuery("DELETE FROM album_tag_override WHERE album_id={:id}").
+			Bind(dbx.Params{"id": id}).Execute()
+		return err
+	}
+	b, err := json.Marshal(tags)
+	if err != nil {
+		return err
+	}
+	_, err = r.db.NewQuery(`INSERT INTO album_tag_override (album_id,tags) VALUES ({:id},{:tags})
+		ON CONFLICT(album_id) DO UPDATE SET tags=excluded.tags`).
+		Bind(dbx.Params{"id": id, "tags": string(b)}).Execute()
+	return err
+}
+
+func (r *albumRepository) ApplyTagOverrides(ctx context.Context, album *model.Album) error {
+	overrides, err := r.GetTagOverrides(ctx, album.ID)
+	if err != nil {
+		return err
+	}
+	if len(overrides) == 0 {
+		return nil
+	}
+	tags := make(model.Tags, len(album.Tags)+len(overrides))
+	for name, values := range album.Tags {
+		tags[name] = slices.Clone(values)
+	}
+	for name, values := range overrides {
+		if len(values) == 0 {
+			delete(tags, name)
+		} else {
+			tags[name] = slices.Clone(values)
+		}
+	}
+	album.Tags = tags
+	album.Genre, album.Genres = tags.ToGenres()
+	return nil
 }
 
 // TODO Move external metadata to a separated table

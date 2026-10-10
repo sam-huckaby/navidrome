@@ -1,2 +1,2 @@
-To create and contribute with new themes, please refer to
-https://www.navidrome.org/docs/developers/creating-themes/
+Music: Server uses a single visual identity, defined in `music.js` and
+`../index.css`. The palette and typography match Music: Client.

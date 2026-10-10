@@ -247,6 +247,72 @@ const wrapperDataProvider = {
     httpClient(`${REST_URL}/metadata/${REFRESH_KIND[resource]}/${id}/refresh`, {
       method: 'POST',
     }).then(() => ({ data: { id } })),
+  getAlbumTags: (id) =>
+    httpClient(`${REST_URL}/album/${encodeURIComponent(id)}/tags`).then(
+      ({ json }) => ({ data: json }),
+    ),
+  updateAlbumTags: (id, changes) =>
+    httpClient(`${REST_URL}/album/${encodeURIComponent(id)}/tags`, {
+      method: 'PUT',
+      body: JSON.stringify(changes),
+    }).then(() => ({ data: { id } })),
+  clearAlbumTags: (id) =>
+    httpClient(`${REST_URL}/album/${encodeURIComponent(id)}/tags`, {
+      method: 'DELETE',
+    }).then(() => ({ data: { id } })),
+  musicUploadStatus: () =>
+    httpClient(`${REST_URL}/music-upload/status`).then(({ json }) => ({
+      data: json,
+    })),
+  createMusicUpload: (libraryId) =>
+    httpClient(`${REST_URL}/music-upload`, {
+      method: 'POST',
+      body: JSON.stringify({ libraryId }),
+    }).then(({ json }) => ({ data: json })),
+  sendMusicUploadFile: (id, file) =>
+    httpClient(
+      `${REST_URL}/music-upload/${id}/file?path=${encodeURIComponent(file.webkitRelativePath || file.name)}`,
+      {
+        method: 'PUT',
+        body: file,
+        headers: new Headers({
+          Accept: 'application/json',
+          'Content-Type': 'application/octet-stream',
+        }),
+      },
+    ).then(() => ({ data: { id } })),
+  previewMusicUpload: (id) =>
+    httpClient(`${REST_URL}/music-upload/${id}/preview`).then(({ json }) => ({
+      data: json,
+    })),
+  matchMusicUploadTrack: (id, path) =>
+    httpClient(`${REST_URL}/music-upload/${id}/match`, {
+      method: 'POST',
+      body: JSON.stringify({ path }),
+    }).then(({ json }) => ({ data: json })),
+  importMusicUpload: (id, tracks) =>
+    httpClient(`${REST_URL}/music-upload/${id}/import`, {
+      method: 'POST',
+      body: JSON.stringify({ tracks }),
+    }).then(({ json }) => ({ data: json })),
+  cancelMusicUpload: (id) =>
+    httpClient(`${REST_URL}/music-upload/${id}`, { method: 'DELETE' }).then(
+      () => ({ data: { id } }),
+    ),
+  setAudiobookCategory: (id, isAudiobook) =>
+    httpClient(`${REST_URL}/album/${encodeURIComponent(id)}/audiobook`, {
+      method: 'PUT',
+      body: JSON.stringify({ isAudiobook }),
+    }).then(() => ({ data: { id } })),
+  getAudiobookProgress: (id) =>
+    httpClient(`${REST_URL}/audiobook/${encodeURIComponent(id)}/progress`).then(
+      ({ json }) => ({ data: json }),
+    ),
+  saveAudiobookProgress: (id, progress) =>
+    httpClient(`${REST_URL}/audiobook/${encodeURIComponent(id)}/progress`, {
+      method: 'PUT',
+      body: JSON.stringify(progress),
+    }).then(() => ({ data: { id } })),
 }
 
 export default wrapperDataProvider

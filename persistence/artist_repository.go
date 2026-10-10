@@ -143,6 +143,13 @@ func NewArtistRepository(db dbx.Builder) model.ArtistRepository {
 		"role":       roleFilter,
 		"missing":    booleanFilter,
 		"library_id": artistLibraryIdFilter,
+		"music_only": func(_ string, value any) Sqlizer {
+			if !isTrueFilterValue(value) {
+				return Expr("1=1")
+			}
+			return Expr(`exists (select 1 from album_artists aa join album al on al.id=aa.album_id
+				where aa.artist_id=artist.id and al.library_id=library_artist.library_id and al.is_audiobook=0)`)
+		},
 	})
 	r.setSortMappings(map[string]string{ //nolint:gosec
 		"name":        "order_artist_name",

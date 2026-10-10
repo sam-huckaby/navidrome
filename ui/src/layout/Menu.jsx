@@ -2,7 +2,12 @@ import React, { useState } from 'react'
 import { useSelector } from 'react-redux'
 import { Divider, makeStyles } from '@material-ui/core'
 import clsx from 'clsx'
-import { useTranslate, MenuItemLink, getResources } from 'react-admin'
+import {
+  useTranslate,
+  usePermissions,
+  MenuItemLink,
+  getResources,
+} from 'react-admin'
 import ViewListIcon from '@material-ui/icons/ViewList'
 import AlbumIcon from '@material-ui/icons/Album'
 import SubMenu from './SubMenu'
@@ -11,11 +16,15 @@ import albumLists from '../album/albumLists'
 import PlaylistsSubMenu from './PlaylistsSubMenu'
 import LibrarySelector from '../common/LibrarySelector'
 import config from '../config'
+import CloudUploadIcon from '@material-ui/icons/CloudUpload'
+import MenuBookIcon from '@material-ui/icons/MenuBook'
 
 const useStyles = makeStyles((theme) => ({
   root: {
-    marginTop: theme.spacing(1),
+    marginTop: theme.spacing(2),
     marginBottom: theme.spacing(1),
+    paddingLeft: theme.spacing(1),
+    paddingRight: theme.spacing(1),
     transition: theme.transitions.create('width', {
       easing: theme.transitions.easing.sharp,
       duration: theme.transitions.duration.leavingScreen,
@@ -23,13 +32,14 @@ const useStyles = makeStyles((theme) => ({
     paddingBottom: (props) => (props.addPadding ? '80px' : '20px'),
   },
   open: {
-    width: 240,
+    width: 208,
   },
   closed: {
-    width: 55,
+    width: 56,
   },
   active: {
-    color: theme.palette.text.primary,
+    color: theme.palette.primary.main,
+    backgroundColor: 'rgba(230, 184, 92, .1)',
     fontWeight: 'bold',
   },
 }))
@@ -52,6 +62,7 @@ const Menu = ({ dense = false }) => {
   const queue = useSelector((state) => state.player?.queue)
   const classes = useStyles({ addPadding: queue.length > 0 })
   const resources = useSelector(getResources)
+  const { permissions } = usePermissions()
 
   // TODO State is not persisted in mobile when you close the sidebar menu. Move to redux?
   const [state, setState] = useState({
@@ -65,15 +76,26 @@ const Menu = ({ dense = false }) => {
   }
 
   const renderResourceMenuItemLink = (resource) => (
-    <MenuItemLink
-      key={resource.name}
-      to={`/${resource.name}`}
-      activeClassName={classes.active}
-      primaryText={translatedResourceName(resource, translate)}
-      leftIcon={resource.icon || <ViewListIcon />}
-      sidebarIsOpen={open}
-      dense={dense}
-    />
+    <React.Fragment key={resource.name}>
+      <MenuItemLink
+        to={`/${resource.name}`}
+        activeClassName={classes.active}
+        primaryText={translatedResourceName(resource, translate)}
+        leftIcon={resource.icon || <ViewListIcon />}
+        sidebarIsOpen={open}
+        dense={dense}
+      />
+      {resource.name === 'song' && (
+        <MenuItemLink
+          to="/audiobooks"
+          primaryText="Audiobooks"
+          leftIcon={<MenuBookIcon />}
+          activeClassName={classes.active}
+          sidebarIsOpen={open}
+          dense={dense}
+        />
+      )}
+    </React.Fragment>
   )
 
   const renderAlbumMenuItemLink = (type, al) => {
@@ -113,6 +135,7 @@ const Menu = ({ dense = false }) => {
       })}
     >
       {open && <LibrarySelector />}
+      {open && <div className="music-nav-heading">Library</div>}
       <SubMenu
         handleToggle={() => handleToggle('menuAlbumList')}
         isOpen={state.menuAlbumList}
@@ -126,6 +149,16 @@ const Menu = ({ dense = false }) => {
         )}
       </SubMenu>
       {resources.filter(subItems(undefined)).map(renderResourceMenuItemLink)}
+      {permissions === 'admin' && (
+        <MenuItemLink
+          to="/upload"
+          primaryText="Upload Music"
+          leftIcon={<CloudUploadIcon />}
+          activeClassName={classes.active}
+          sidebarIsOpen={open}
+          dense={dense}
+        />
+      )}
       {config.devSidebarPlaylists && open ? (
         <>
           <Divider />

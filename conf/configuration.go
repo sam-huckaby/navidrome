@@ -91,6 +91,7 @@ type configOptions struct {
 	EnableStarRating                bool
 	EnableUserEditing               bool
 	EnableArtworkUpload             bool
+	AcoustIDKey                     string `json:"-"` // AcoustID application key for optional upload matching
 	MaxImageUploadSize              string
 	MaxImageSize                    string
 	EnableSharing                   bool

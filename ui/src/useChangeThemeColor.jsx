@@ -3,11 +3,10 @@ import useCurrentTheme from './themes/useCurrentTheme'
 
 const useChangeThemeColor = () => {
   const theme = useCurrentTheme()
-  const color =
-    theme.palette?.primary?.light || theme.palette?.primary?.main || '#ffffff'
+  const color = theme.palette.background.default
   useEffect(() => {
     const themeColor = document.querySelector("meta[name='theme-color']")
-    themeColor.setAttribute('content', color)
+    themeColor?.setAttribute('content', color)
   }, [color])
 }
 

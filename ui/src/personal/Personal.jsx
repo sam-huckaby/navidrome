@@ -2,7 +2,6 @@ import { SimpleForm, Title, useTranslate } from 'react-admin'
 import { Card } from '@material-ui/core'
 import { makeStyles } from '@material-ui/core/styles'
 import { SelectLanguage } from './SelectLanguage'
-import { SelectTheme } from './SelectTheme'
 import { SelectDefaultView } from './SelectDefaultView'
 import { NotificationsToggle } from './NotificationsToggle'
 import { LastfmScrobbleToggle } from './LastfmScrobbleToggle'
@@ -20,9 +19,8 @@ const Personal = () => {
 
   return (
     <Card className={classes.root}>
-      <Title title={'Navidrome - ' + translate('menu.personal.name')} />
+      <Title title={'Music: Server - ' + translate('menu.personal.name')} />
       <SimpleForm toolbar={null} variant={'outlined'}>
-        <SelectTheme />
         <SelectLanguage />
         <SelectDefaultView />
         {config.enableReplayGain && <ReplayGainToggle />}

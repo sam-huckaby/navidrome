@@ -19,6 +19,7 @@ cache/*
 *.swp
 coverage.out
 dist
+audiobooks
 music
 music.old
 *.db*

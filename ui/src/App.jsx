@@ -26,7 +26,6 @@ import { Player } from './audioplayer'
 import customRoutes from './routes'
 import {
   libraryReducer,
-  themeReducer,
   addToPlaylistDialogReducer,
   expandInfoDialogReducer,
   listenBrainzTokenDialogReducer,
@@ -69,7 +68,6 @@ const adminStore = createAdminStore({
     library: libraryReducer,
     player: playerReducer,
     albumView: albumViewReducer,
-    theme: themeReducer,
     addToPlaylistDialog: addToPlaylistDialogReducer,
     downloadMenuDialog: downloadMenuDialogReducer,
     expandInfoDialog: expandInfoDialogReducer,

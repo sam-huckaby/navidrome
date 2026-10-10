@@ -128,7 +128,7 @@ const ArtistShowLayout = (props) => {
           reference="album"
           target="artist_id"
           sort={{ field: 'max_year', order: 'ASC' }}
-          filter={{ artist_id: record?.id }}
+          filter={{ artist_id: record?.id, audiobook: false }}
           perPage={perPage}
           pagination={pagination}
         >

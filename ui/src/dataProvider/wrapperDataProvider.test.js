@@ -135,4 +135,70 @@ describe('wrapperDataProvider', () => {
       ).resolves.toEqual({ data: { id: 'al-1' } })
     })
   })
+
+  describe('album tags', () => {
+    it('returns album tags in the data-provider response shape', async () => {
+      const album = { tags: { genre: ['Christian & Gospel'] }, overrides: {} }
+      mockHttpClient.mockResolvedValue({ json: album })
+
+      await expect(wrapperDataProvider.getAlbumTags('al-1')).resolves.toEqual({
+        data: album,
+      })
+      expect(mockHttpClient).toHaveBeenCalledWith('/api/album/al-1/tags')
+    })
+
+    it('returns a data response after saving or restoring tags', async () => {
+      mockHttpClient.mockResolvedValue({ status: 204, json: undefined })
+
+      await expect(
+        wrapperDataProvider.updateAlbumTags('al-1', { genre: ['Jazz'] }),
+      ).resolves.toEqual({ data: { id: 'al-1' } })
+      expect(mockHttpClient).toHaveBeenCalledWith('/api/album/al-1/tags', {
+        method: 'PUT',
+        body: JSON.stringify({ genre: ['Jazz'] }),
+      })
+
+      await expect(wrapperDataProvider.clearAlbumTags('al-1')).resolves.toEqual(
+        { data: { id: 'al-1' } },
+      )
+      expect(mockHttpClient).toHaveBeenCalledWith('/api/album/al-1/tags', {
+        method: 'DELETE',
+      })
+    })
+  })
+
+  describe('music upload', () => {
+    it('returns data-provider shaped status and staged upload responses', async () => {
+      mockHttpClient.mockResolvedValueOnce({
+        json: { fpcalcInstalled: false, matchingConfigured: false },
+      })
+      await expect(wrapperDataProvider.musicUploadStatus()).resolves.toEqual({
+        data: { fpcalcInstalled: false, matchingConfigured: false },
+      })
+
+      mockHttpClient.mockResolvedValueOnce({ json: { id: 'session-1' } })
+      await expect(wrapperDataProvider.createMusicUpload(1)).resolves.toEqual({
+        data: { id: 'session-1' },
+      })
+      expect(mockHttpClient).toHaveBeenCalledWith('/api/music-upload', {
+        method: 'POST',
+        body: JSON.stringify({ libraryId: 1 }),
+      })
+    })
+
+    it('sends a folder-relative file path and returns a data response for empty bodies', async () => {
+      const file = new File(['audio'], 'track.mp3')
+      Object.defineProperty(file, 'webkitRelativePath', {
+        value: 'Artist/Album/track.mp3',
+      })
+      mockHttpClient.mockResolvedValue({ status: 204 })
+      await expect(
+        wrapperDataProvider.sendMusicUploadFile('session-1', file),
+      ).resolves.toEqual({ data: { id: 'session-1' } })
+      expect(mockHttpClient).toHaveBeenCalledWith(
+        '/api/music-upload/session-1/file?path=Artist%2FAlbum%2Ftrack.mp3',
+        expect.objectContaining({ method: 'PUT', body: file }),
+      )
+    })
+  })
 })

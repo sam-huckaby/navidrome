@@ -33,6 +33,10 @@ setup: check_env download-deps install-golangci-lint setup-git ##@1_Run_First In
 	@(cd ./ui && npm ci)
 .PHONY: setup
 
+setup-fingerprint: ##@Development Optionally install Chromaprint's fpcalc for upload metadata matching
+	sh scripts/setup-fingerprint.sh
+.PHONY: setup-fingerprint
+
 dev: check_env   ##@Development Start Navidrome in development mode, with hot-reload for both frontend and backend
 	npx foreman -j Procfile.dev -p 4533 start
 .PHONY: dev

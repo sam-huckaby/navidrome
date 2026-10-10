@@ -52,6 +52,11 @@ func (r *tagRepository) Add(ctx context.Context, libraryID int, tags ...model.Ta
 // UpdateCounts updates the library_tag table with per-library statistics.
 // Only genres are being updated for now.
 func (r *tagRepository) UpdateCounts(ctx context.Context) error {
+	// A tag removed from the last album/song is absent from the aggregation;
+	// clear old counts first so it does not retain a stale nonzero value.
+	if _, err := r.executeSQL(ctx, Expr("UPDATE library_tag SET album_count=0, media_file_count=0")); err != nil {
+		return err
+	}
 	template := `
 INSERT INTO library_tag (tag_id, library_id, %[1]s_count)
 SELECT jt.value as tag_id, %[1]s.library_id, count(distinct %[1]s.id) as %[1]s_count

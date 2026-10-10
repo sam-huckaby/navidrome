@@ -89,8 +89,12 @@ func (api *Router) routes() http.Handler {
 		api.addKeepAliveRoute(r)
 		api.addInsightsRoute(r)
 		api.addQuickConnectRoute(r)
+		api.addAudiobookProgressRoute(r)
 
 		r.With(adminOnlyMiddleware).Group(func(r chi.Router) {
+			api.addAudiobookCategoryRoute(r)
+			api.addMusicUploadRoutes(r)
+			api.addAlbumTagRoutes(r)
 			api.addInspectRoute(r)
 			api.addConfigRoute(r)
 			api.addUserLibraryRoute(r)

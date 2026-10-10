@@ -35,29 +35,39 @@ import {
 import { useDateLocale } from '../i18n/useDateLocale'
 import { formatFullDate, intersperse } from '../utils'
 import AlbumExternalLinks from './AlbumExternalLinks'
+import EditAlbumTags from './EditAlbumTags'
+import AudiobookCategoryButton from '../audiobook/AudiobookCategoryButton'
 import { SafeHTML } from '../common/SafeHTML'
 
 const useStyles = makeStyles(
   (theme) => ({
     root: {
+      marginBottom: theme.spacing(3),
+      background:
+        'radial-gradient(ellipse at 5% 100%, rgba(183,128,55,.14), transparent 50%), #191916',
       [theme.breakpoints.down('xs')]: {
-        padding: '0.7em',
-        minWidth: '20em',
+        padding: theme.spacing(2),
+        minWidth: 0,
       },
       [theme.breakpoints.up('sm')]: {
-        padding: '1em',
-        minWidth: '32em',
+        padding: theme.spacing(3),
+        minWidth: 0,
       },
     },
     cardContents: {
       display: 'flex',
+      alignItems: 'flex-end',
+      gap: theme.spacing(3),
+      [theme.breakpoints.down('xs')]: { gap: theme.spacing(2) },
     },
     details: {
       display: 'flex',
       flexDirection: 'column',
+      minWidth: 0,
     },
     content: {
-      flex: '2 0 auto',
+      flex: '1 1 auto',
+      padding: '0 !important',
     },
     coverParent: {
       [theme.breakpoints.down('xs')]: {
@@ -79,6 +89,8 @@ const useStyles = makeStyles(
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
+      flexShrink: 0,
+      boxShadow: '0 20px 45px rgba(0,0,0,.3)',
     },
     noCoverAnimation: {
       '&, &::before, &::after': { animation: 'none' },
@@ -90,6 +102,7 @@ const useStyles = makeStyles(
       width: '100%',
       height: '100%',
       backgroundColor: 'transparent',
+      borderRadius: 5,
       transition: 'opacity 0.3s ease-in-out',
     },
     loveButton: {
@@ -103,11 +116,27 @@ const useStyles = makeStyles(
       wordBreak: 'break-word',
       cursor: 'pointer',
     },
-    recordName: {},
-    recordArtist: {},
-    recordMeta: {},
+    recordName: {
+      fontFamily: '"Newsreader", Georgia, serif',
+      fontSize: 'clamp(28px, 4vw, 56px)',
+      lineHeight: 1.08,
+      overflowWrap: 'anywhere',
+    },
+    recordArtist: { color: theme.palette.primary.main, fontWeight: 600 },
+    recordMeta: {
+      color: theme.palette.text.secondary,
+      fontSize: 13,
+      marginTop: theme.spacing(1),
+    },
     genreList: {
       marginTop: theme.spacing(0.5),
+    },
+    genreRow: {
+      display: 'flex',
+      alignItems: 'center',
+      flexWrap: 'wrap',
+      gap: theme.spacing(1),
+      marginTop: theme.spacing(1),
     },
     externalLinks: {
       marginTop: theme.spacing(1.5),
@@ -302,11 +331,17 @@ const AlbumDetails = (props) => {
                 />
               </div>
             )}
-            {isDesktop ? (
-              <GenreList />
-            ) : (
-              <Typography component={'p'}>{record.genre}</Typography>
-            )}
+            <div className={classes.genreRow}>
+              {isDesktop ? (
+                <GenreList />
+              ) : (
+                record.genre && (
+                  <Typography component={'span'}>{record.genre}</Typography>
+                )
+              )}
+              <EditAlbumTags record={record} />
+              <AudiobookCategoryButton album={record} />
+            </div>
             {!isXsmall && (
               <Typography component={'div'} className={classes.recordMeta}>
                 {config.enableExternalServices && (

@@ -125,6 +125,9 @@ var mediaFileFilter = sync.OnceValue(func() map[string]filterFunc {
 		"artists_id": mediaFileArtistFilter,
 		"library_id": libraryIdFilter,
 		"path":       startsWithFilter("media_file.path"),
+		"audiobook": func(_ string, value any) Sqlizer {
+			return Eq{"coalesce((select album.is_audiobook from album where album.id=media_file.album_id),0)": isTrueFilterValue(value)}
+		},
 	}
 	// Add all album tags as filters
 	for tag := range model.TagMappings() {

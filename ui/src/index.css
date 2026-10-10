@@ -1,17 +1,213 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap');
+
+:root {
+  font-family: 'DM Sans', system-ui, sans-serif;
+  color: #f3eee4;
+  background: #11110f;
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+  --music-ink: #f3eee4;
+  --music-muted: #aaa79f;
+  --music-surface: #191916;
+  --music-raised: #22221e;
+  --music-gold: #e6b85c;
+  --music-line: rgba(255, 255, 255, 0.09);
+}
+
+* {
+  box-sizing: border-box;
+}
 body {
   margin: 0;
-  font-family:
-    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu',
-    'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  min-width: 320px;
+}
+button,
+input,
+select {
+  font: inherit;
+}
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+a:focus-visible,
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--music-gold);
+  outline-offset: 3px;
+}
+h1,
+h2 {
+  font-family: 'Newsreader', Georgia, serif;
+}
+::selection {
+  background: #bd8537;
+  color: #11110f;
+}
+::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+::-webkit-scrollbar-thumb {
+  background: #4d483d;
+  border-radius: 9px;
 }
 
-code {
-  font-family:
-    source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
+.music-brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  flex: 0 0 auto;
+  color: var(--music-ink);
+  text-decoration: none;
+}
+.music-brand:hover {
+  color: var(--music-ink);
+}
+.music-brand-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid #947035;
+  border-radius: 50% 50% 46% 54%;
+  color: var(--music-gold);
+  background: #181711;
+  box-shadow: inset 0 0 0 3px #181711;
+  font:
+    600 21px 'Newsreader',
+    Georgia,
+    serif;
+  transform: rotate(-4deg);
+}
+.music-brand-mark--large {
+  width: 58px;
+  height: 58px;
+  font-size: 34px;
+}
+.music-brand-name {
+  font:
+    600 23px 'Newsreader',
+    Georgia,
+    serif;
+  white-space: nowrap;
+}
+.music-brand-suffix {
+  color: var(--music-muted);
+  font-size: 17px;
+}
+.music-page-title {
+  flex: 1;
+  min-width: 0;
+  padding-left: 30px;
+  color: var(--music-muted);
+  font-size: 13px !important;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.music-nav-heading {
+  padding: 20px 15px 9px;
+  color: var(--music-gold);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
 }
 
+.layout .MuiAppBar-root {
+  backdrop-filter: blur(18px);
+}
+.layout .MuiDrawer-paper .MuiListItem-root {
+  margin: 2px 0;
+  min-height: 44px;
+  color: var(--music-muted);
+}
+.layout .MuiDrawer-paper .MuiListItem-root:hover {
+  color: var(--music-ink);
+}
+.layout .MuiDrawer-paper .MuiListItem-root[class*='active'] {
+  color: var(--music-gold);
+}
+.layout .MuiDrawer-paper .MuiListItemIcon-root {
+  color: inherit;
+}
+.layout .MuiCard-root,
+.layout .MuiTableContainer-root {
+  background: var(--music-surface);
+}
+.layout .MuiCardHeader-title,
+.layout .MuiTypography-h5,
+.layout .MuiTypography-h6 {
+  font-family: 'Newsreader', Georgia, serif;
+}
+.layout .MuiTypography-h5 {
+  font-size: 30px;
+}
+.layout .MuiTypography-h6 {
+  font-size: 23px;
+}
+.layout .MuiTableRow-root:hover {
+  background: var(--music-raised);
+}
+.layout .MuiChip-root {
+  background: var(--music-raised);
+}
+.layout .MuiGridListTile-root img {
+  border-radius: 5px;
+}
+.layout .MuiTabs-indicator {
+  background: var(--music-gold);
+}
+.layout .MuiTab-root.Mui-selected {
+  color: var(--music-gold);
+}
+.layout .MuiCardActions-root {
+  gap: 5px;
+}
+.layout .MuiButton-containedPrimary {
+  color: #17140e;
+}
+.layout .MuiButton-containedPrimary:hover {
+  background: #f2c66e;
+}
 .rc-slider {
   z-index: 78;
+}
+
+@media (max-width: 600px) {
+  .music-brand-suffix {
+    display: none;
+  }
+  .music-page-title {
+    padding-left: 12px;
+  }
+  .layout [class*='RaLayout-appFrame'] {
+    margin-top: 58px !important;
+  }
+  .layout #main-content {
+    padding: 15px 12px 110px !important;
+  }
+  .layout .MuiAppBar-root .MuiToolbar-root {
+    min-height: 58px;
+  }
+}
+@media (min-width: 701px) and (max-width: 1100px) and (max-height: 560px) {
+  .layout [class*='RaLayout-appFrame'] {
+    margin-top: 56px !important;
+  }
+  .layout #main-content {
+    padding-top: 12px !important;
+  }
+  .layout .MuiAppBar-root .MuiToolbar-root {
+    min-height: 56px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
