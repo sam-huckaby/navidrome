@@ -1,53 +1,57 @@
 import React from 'react'
 import { render, screen } from '@testing-library/react'
 import { createTheme, ThemeProvider } from '@material-ui/core/styles'
+import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import AudiobookLibrary from './AudiobookLibrary'
 
-const mockedList = vi.fn()
-vi.mock('../common', () => ({
-  List: ({ children, ...props }) => {
-    mockedList(props)
-    return <div>{children}</div>
-  },
-}))
-vi.mock('react-admin', async (importOriginal) => ({
-  ...(await importOriginal()),
+const useListContext = vi.fn()
+
+vi.mock('react-admin', () => ({
   Title: () => null,
-  useListContext: () => ({
-    ids: ['al-book'],
-    data: {
-      'al-book': { id: 'al-book', name: 'The Book', albumArtist: 'Reader' },
-    },
-    loading: false,
-  }),
+  useListContext: () => useListContext(),
 }))
-vi.mock('react-router-dom', async (importOriginal) => ({
-  ...(await importOriginal()),
-  Link: ({ to, children, ...rest }) => (
-    <a href={to} {...rest}>
+vi.mock('../common', () => ({
+  List: ({ basePath, children }) => (
+    <div data-testid="audiobook-list" data-base-path={basePath}>
       {children}
-    </a>
+    </div>
   ),
 }))
-vi.mock('../subsonic', () => ({ default: { getCoverArtUrl: () => '/cover' } }))
+vi.mock('../subsonic', () => ({
+  default: { getCoverArtUrl: () => '' },
+}))
 
 describe('AudiobookLibrary', () => {
-  it('filters books and links covers to the dedicated player', () => {
+  it('renders while its list context is not initialized', () => {
+    useListContext.mockReturnValue({ loading: true })
+
     render(
       <ThemeProvider theme={createTheme()}>
-        <AudiobookLibrary />
+        <MemoryRouter>
+          <AudiobookLibrary />
+        </MemoryRouter>
       </ThemeProvider>,
     )
-    expect(mockedList).toHaveBeenCalledWith(
-      expect.objectContaining({
-        resource: 'album',
-        filter: { audiobook: true },
-      }),
+
+    expect(screen.getByRole('heading', { name: 'Audiobooks' })).toBeInTheDocument()
+    expect(screen.getByTestId('audiobook-list')).toHaveAttribute(
+      'data-base-path',
+      '/album',
     )
-    expect(screen.getByRole('link', { name: /The Book/ })).toHaveAttribute(
-      'href',
-      '/audiobooks/al-book',
+  })
+
+  it('shows the empty state once audiobooks finish loading', () => {
+    useListContext.mockReturnValue({ ids: [], data: {}, loading: false })
+
+    render(
+      <ThemeProvider theme={createTheme()}>
+        <MemoryRouter>
+          <AudiobookLibrary />
+        </MemoryRouter>
+      </ThemeProvider>,
     )
+
+    expect(screen.getByText(/No audiobooks yet/)).toBeInTheDocument()
   })
 })

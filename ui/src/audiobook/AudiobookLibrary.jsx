@@ -42,7 +42,7 @@ const useStyles = makeStyles((theme) => ({
 
 const AudiobookGrid = () => {
   const classes = useStyles()
-  const { ids, data, loading } = useListContext()
+  const { ids = [], data = {}, loading } = useListContext()
   return (
     <div className={classes.root}>
       <Typography variant="h4" component="h1" gutterBottom>
@@ -86,6 +86,7 @@ const AudiobookLibrary = () => (
     <RaTitle title="Music: Server - Audiobooks" />
     <List
       resource="album"
+      basePath="/album"
       filter={{ audiobook: true }}
       sort={{ field: 'name', order: 'ASC' }}
       perPage={36}
