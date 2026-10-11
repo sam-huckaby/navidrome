@@ -1,6 +1,7 @@
 package nativeapi
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -26,6 +27,31 @@ func TestMusicUploadPaths(t *testing.T) {
 	}
 	if _, err := ensureUploadDirectory(root, "Artist", "Album"); err == nil {
 		t.Fatal("an upload followed a symlink out of the library")
+	}
+}
+
+func TestPublishUploadFile(t *testing.T) {
+	dir := t.TempDir()
+	tmp := filepath.Join(dir, ".music-upload")
+	dest := filepath.Join(dir, "track.mp3")
+	if err := os.WriteFile(tmp, []byte("audio"), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	alreadyExists, err := publishUploadFileWithLink(tmp, dest, func(_, _ string) error {
+		return errors.New("hard links unsupported")
+	})
+	if err != nil || alreadyExists {
+		t.Fatalf("publishUploadFile() = (%v, %v), want (false, nil)", alreadyExists, err)
+	}
+	got, err := os.ReadFile(dest)
+	if err != nil || string(got) != "audio" {
+		t.Fatalf("published file = %q, %v", got, err)
+	}
+
+	alreadyExists, err = publishUploadFile(tmp, dest)
+	if err != nil || !alreadyExists {
+		t.Fatalf("duplicate publish = (%v, %v), want (true, nil)", alreadyExists, err)
 	}
 }
 

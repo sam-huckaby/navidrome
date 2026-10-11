@@ -22,6 +22,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/navidrome/navidrome/conf"
+	"github.com/navidrome/navidrome/log"
 	"go.senan.xyz/taglib"
 	"golang.org/x/time/rate"
 )
@@ -362,6 +363,49 @@ func ensureUploadDirectory(root string, parts ...string) (string, error) {
 	return current, nil
 }
 
+// publishUploadFile uses a hard link when available so a complete temporary
+// file appears atomically. Filesystems such as ExFAT do not support links, so
+// fall back to an exclusive copy without replacing a concurrent upload.
+func publishUploadFile(tmp, dest string) (alreadyExists bool, err error) {
+	return publishUploadFileWithLink(tmp, dest, os.Link)
+}
+
+func publishUploadFileWithLink(tmp, dest string, link func(string, string) error) (alreadyExists bool, err error) {
+	err = link(tmp, dest)
+	if err == nil {
+		return false, nil
+	}
+	if errors.Is(err, os.ErrExist) {
+		return true, nil
+	}
+
+	in, err := os.Open(tmp)
+	if err != nil {
+		return false, err
+	}
+	defer in.Close()
+
+	out, err := os.OpenFile(dest, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
+	if errors.Is(err, os.ErrExist) {
+		return true, nil
+	}
+	if err != nil {
+		return false, err
+	}
+
+	_, copyErr := io.Copy(out, in)
+	closeErr := out.Close()
+	if copyErr != nil {
+		_ = os.Remove(dest)
+		return false, copyErr
+	}
+	if closeErr != nil {
+		_ = os.Remove(dest)
+		return false, closeErr
+	}
+	return false, nil
+}
+
 type importRequest struct {
 	Tracks []uploadedTrack `json:"tracks"`
 }
@@ -556,13 +600,14 @@ func (api *Router) importMusicUpload(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "could not store track", http.StatusInternalServerError)
 			return
 		}
-		err = os.Link(tmp, dest)
+		alreadyExists, err := publishUploadFile(tmp, dest)
 		_ = os.Remove(tmp)
-		if errors.Is(err, os.ErrExist) {
+		if alreadyExists {
 			skipped = append(skipped, name)
 			continue
 		}
 		if err != nil {
+			log.Error(r.Context(), "Could not publish uploaded track", "track", name, err)
 			http.Error(w, "could not publish track", http.StatusInternalServerError)
 			return
 		}
