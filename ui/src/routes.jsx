@@ -4,10 +4,12 @@ import Personal from './personal/Personal'
 import UploadMusic from './upload/UploadMusic'
 import AudiobookLibrary from './audiobook/AudiobookLibrary'
 import AudiobookPlayer from './audiobook/AudiobookPlayer'
+import LiveLogs from './layout/LiveLogs'
 
 const routes = [
   <Route exact path="/personal" render={() => <Personal />} key={'personal'} />,
   <Route exact path="/upload" render={() => <UploadMusic />} key={'upload'} />,
+  <Route exact path="/logs" render={() => <LiveLogs />} key={'logs'} />,
   <Route
     exact
     path="/audiobooks"

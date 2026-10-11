@@ -92,6 +92,7 @@ func (api *Router) routes() http.Handler {
 		api.addAudiobookProgressRoute(r)
 
 		r.With(adminOnlyMiddleware).Group(func(r chi.Router) {
+			r.Get("/logs/stream", streamLogs)
 			api.addAudiobookCategoryRoute(r)
 			api.addMusicUploadRoutes(r)
 			api.addAlbumTagRoutes(r)

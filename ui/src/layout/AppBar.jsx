@@ -8,6 +8,7 @@ import {
 } from 'react-admin'
 import {
   MdInfo,
+  MdListAlt,
   MdPerson,
   MdPhonelink,
   MdSupervisorAccount,
@@ -155,6 +156,17 @@ const CustomUserMenu = ({ onClick, ...rest }) => {
         {resources
           .filter(settingsResources)
           .map((r) => renderSettingsMenuItemLink(r))}
+        {permissions === 'admin' && (
+          <MenuItemLink
+            className={classes.root}
+            activeClassName={classes.active}
+            to="/logs"
+            primaryText={translate('logs.title')}
+            leftIcon={<MdListAlt size={24} />}
+            onClick={onClick}
+            sidebarIsOpen={true}
+          />
+        )}
         <Divider />
         <DialogMenuItem
           label={translate('menu.about')}

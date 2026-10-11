@@ -653,6 +653,25 @@
     "downloadDialogTitle": "Download %{resource} '%{name}' (%{size})",
     "downloadOriginalFormat": "Download in original format"
   },
+  "logs": {
+    "title": "Live Logs",
+    "connecting": "Connecting…",
+    "reconnecting": "Reconnecting…",
+    "live": "Live",
+    "pause": "Pause",
+    "resume": "Resume",
+    "clear": "Clear view",
+    "level": "Level",
+    "levels": {
+      "all": "All",
+      "fatal": "Fatal",
+      "error": "Error",
+      "warning": "Warning",
+      "info": "Info",
+      "debug": "Debug",
+      "trace": "Trace"
+    }
+  },
   "menu": {
     "library": "Library",
     "librarySelector": {

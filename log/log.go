@@ -371,6 +371,7 @@ func createNewLogger() *logrus.Entry {
 
 func init() {
 	defaultLogger.Level = logrus.TraceLevel
+	defaultLogger.AddHook(&recordHook{store: records})
 	_, file, _, ok := runtime.Caller(0)
 	if !ok {
 		return
