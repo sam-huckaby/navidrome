@@ -11,6 +11,9 @@ const provider = {
   saveAudiobookProgress: vi.fn(),
 }
 const dispatch = vi.fn()
+const { streamUrl } = vi.hoisted(() => ({
+  streamUrl: vi.fn((id) => `/stream/${id}?_=${Date.now()}`),
+}))
 vi.mock('react-admin', async (importOriginal) => ({
   ...(await importOriginal()),
   Title: () => null,
@@ -29,7 +32,7 @@ vi.mock('react-redux', () => ({
 }))
 vi.mock('../subsonic', () => ({
   default: {
-    streamUrl: (id) => `/stream/${id}`,
+    streamUrl,
     getCoverArtUrl: () => '/cover',
   },
 }))
@@ -98,6 +101,33 @@ describe('AudiobookPlayer', () => {
         completed: false,
       }),
     )
+  })
+
+  it('keeps the stream URL stable during playback updates and changes it for a new chapter', async () => {
+    const { container } = render(
+      <ThemeProvider theme={createTheme()}>
+        <AudiobookPlayer />
+      </ThemeProvider>,
+    )
+    await screen.findByRole('heading', { name: 'Chapter 2' })
+    const audio = container.querySelector('audio')
+    const originalSrc = audio.src
+    const initialCalls = streamUrl.mock.calls.length
+
+    fireEvent.loadedMetadata(audio)
+    fireEvent.click(screen.getByRole('button', { name: 'Resume' }))
+    fireEvent.play(audio)
+    audio.currentTime = 35
+    fireEvent.timeUpdate(audio)
+    fireEvent.pause(audio)
+
+    expect(audio.src).toBe(originalSrc)
+    expect(streamUrl).toHaveBeenCalledTimes(initialCalls)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Previous chapter' }))
+    await screen.findByRole('heading', { name: 'Chapter 1' })
+    expect(container.querySelector('audio').src).not.toBe(originalSrc)
+    expect(streamUrl).toHaveBeenCalledTimes(initialCalls + 1)
   })
 
   it('marks an audiobook complete after the final chapter ends', async () => {

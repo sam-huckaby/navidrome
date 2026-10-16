@@ -157,7 +157,7 @@ func (md Metadata) tuple(key model.TagName) (int, int) {
 
 // tagNumber rejects negatives and values above int32, so the DB stays readable by 32-bit builds.
 func tagNumber(s string) int {
-	v, err := strconv.ParseInt(s, 10, 32)
+	v, err := strconv.ParseInt(strings.TrimSpace(s), 10, 32)
 	if err != nil || v < 0 {
 		return 0
 	}

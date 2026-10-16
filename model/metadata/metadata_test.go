@@ -224,6 +224,8 @@ var _ = Describe("Metadata", func() {
 			Entry(nil, "2", "", 2, 0),
 			Entry(nil, "2", "10", 2, 10),
 			Entry(nil, "2/10", "", 2, 10),
+			Entry("accepts whitespace-padded track numbers and totals", " 12 / 48 ", "", 12, 48),
+			Entry("accepts whitespace-padded separate totals", " 01/48", " 48 ", 1, 48),
 			Entry(nil, "", "", 0, 0),
 			Entry(nil, "A", "", 0, 0),
 			Entry("ignores values that do not fit in 32 bits", "4294967295", "4294967296", 0, 0),

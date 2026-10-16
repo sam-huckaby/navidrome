@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import {
@@ -97,6 +97,11 @@ const AudiobookPlayer = () => {
   const [error, setError] = useState('')
 
   const chapter = chapters[index]
+  const chapterId = chapter?.id
+  const streamUrl = useMemo(
+    () => (chapterId ? subsonic.streamUrl(chapterId) : ''),
+    [chapterId],
+  )
   currentRef.current = chapter
     ? {
         trackId: chapter.id,
@@ -288,7 +293,7 @@ const AudiobookPlayer = () => {
               key={chapter.id}
               ref={audioRef}
               preload="metadata"
-              src={subsonic.streamUrl(chapter.id)}
+              src={streamUrl}
               onLoadedMetadata={(event) => {
                 const audio = event.currentTarget
                 audio.playbackRate = speed
