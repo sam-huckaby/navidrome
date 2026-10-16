@@ -76,6 +76,12 @@ func (api *Router) searchAll(ctx context.Context, sp *searchParams, musicFolderI
 		albumOpts.Filters = Eq{"library_id": musicFolderIds}
 		artistOpts.Filters = Eq{"library_id": musicFolderIds}
 	}
+	if songOpts.Filters == nil {
+		songOpts.Filters = musicTrackFilter()
+	} else {
+		songOpts.Filters = And{songOpts.Filters, musicTrackFilter()}
+	}
+	albumOpts = albumTypeFilter(albumOpts, false)
 
 	// Run searches in parallel
 	g, ctx := errgroup.WithContext(ctx)

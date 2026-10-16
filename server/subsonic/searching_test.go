@@ -104,9 +104,9 @@ var _ = Describe("Search", func() {
 				Expect(err).ToNot(HaveOccurred())
 				Expect(resp).ToNot(BeNil())
 				Expect(resp.SearchResult2).ToNot(BeNil())
-				Expect(mockAlbumRepo.Options.Filters).To(BeNil())
+				assertQueryOptions(mockAlbumRepo.Options.Filters, "album.is_audiobook = ?", false)
 				Expect(mockArtistRepo.Options.Filters).To(BeNil())
-				Expect(mockMediaFileRepo.Options.Filters).To(BeNil())
+				assertQueryOptions(mockMediaFileRepo.Options.Filters, "is_audiobook from album", 0)
 			})
 
 			It("should return error for inaccessible musicFolderId", func() {
@@ -188,9 +188,9 @@ var _ = Describe("Search", func() {
 				Expect(err).ToNot(HaveOccurred())
 				Expect(resp).ToNot(BeNil())
 				Expect(resp.SearchResult3).ToNot(BeNil())
-				Expect(mockAlbumRepo.Options.Filters).To(BeNil())
+				assertQueryOptions(mockAlbumRepo.Options.Filters, "album.is_audiobook = ?", false)
 				Expect(mockArtistRepo.Options.Filters).To(BeNil())
-				Expect(mockMediaFileRepo.Options.Filters).To(BeNil())
+				assertQueryOptions(mockMediaFileRepo.Options.Filters, "is_audiobook from album", 0)
 			})
 
 			It("should return error for inaccessible musicFolderId", func() {

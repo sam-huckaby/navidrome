@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	. "github.com/Masterminds/squirrel"
 	"github.com/navidrome/navidrome/core/scrobbler"
 	"github.com/navidrome/navidrome/log"
 	"github.com/navidrome/navidrome/model"
@@ -16,11 +17,15 @@ import (
 	"github.com/navidrome/navidrome/utils/slice"
 )
 
-func (api *Router) getAlbumList(r *http.Request) (model.Albums, int64, error) {
+func (api *Router) getAlbumList(r *http.Request, audiobook bool) (model.Albums, int64, error) {
 	p := req.Params(r)
-	typ, err := p.String("type")
-	if err != nil {
-		return nil, 0, err
+	typ := p.StringOr("type", "alphabeticalByName")
+	if !audiobook {
+		var err error
+		typ, err = p.String("type")
+		if err != nil {
+			return nil, 0, err
+		}
 	}
 
 	var opts filter.Options
@@ -61,6 +66,7 @@ func (api *Router) getAlbumList(r *http.Request) (model.Albums, int64, error) {
 		log.Error(r, "albumList type not implemented", "type", typ)
 		return nil, 0, newError(responses.ErrorGeneric, "type '%s' not implemented", typ)
 	}
+	opts = albumTypeFilter(opts, audiobook)
 
 	// Get optional library IDs from musicFolderId parameter
 	musicFolderIds, err := selectedMusicFolderIds(r, false)
@@ -71,6 +77,10 @@ func (api *Router) getAlbumList(r *http.Request) (model.Albums, int64, error) {
 
 	opts.Offset = p.IntOr("offset", 0)
 	opts.Max = min(p.IntOr("size", 10), 500)
+	if audiobook {
+		opts.Offset = max(opts.Offset, 0)
+		opts.Max = max(opts.Max, 1)
+	}
 	albums, err := api.ds.Album().GetAll(r.Context(), opts)
 
 	if err != nil {
@@ -88,7 +98,7 @@ func (api *Router) getAlbumList(r *http.Request) (model.Albums, int64, error) {
 }
 
 func (api *Router) GetAlbumList(w http.ResponseWriter, r *http.Request) (*responses.Subsonic, error) {
-	albums, count, err := api.getAlbumList(r)
+	albums, count, err := api.getAlbumList(r, false)
 	if err != nil {
 		return nil, err
 	}
@@ -103,7 +113,7 @@ func (api *Router) GetAlbumList(w http.ResponseWriter, r *http.Request) (*respon
 }
 
 func (api *Router) GetAlbumList2(w http.ResponseWriter, r *http.Request) (*responses.Subsonic, error) {
-	albums, pageCount, err := api.getAlbumList(r)
+	albums, pageCount, err := api.getAlbumList(r, false)
 	if err != nil {
 		return nil, err
 	}
@@ -114,6 +124,18 @@ func (api *Router) GetAlbumList2(w http.ResponseWriter, r *http.Request) (*respo
 	response.AlbumList2 = &responses.AlbumList2{
 		Album: slice.MapWithArg(albums, r.Context(), buildAlbumID3),
 	}
+	return response, nil
+}
+
+// GetAudiobooks uses the same pagination, sorting and album representation as getAlbumList2.
+func (api *Router) GetAudiobooks(w http.ResponseWriter, r *http.Request) (*responses.Subsonic, error) {
+	albums, count, err := api.getAlbumList(r, true)
+	if err != nil {
+		return nil, err
+	}
+	w.Header().Set("x-total-count", strconv.FormatInt(count, 10))
+	response := newResponse()
+	response.Audiobooks = &responses.AlbumList2{Album: slice.MapWithArg(albums, r.Context(), buildAlbumID3)}
 	return response, nil
 }
 
@@ -145,7 +167,7 @@ func (api *Router) getStarredItems(r *http.Request) (model.Artists, model.Albums
 		},
 		// Query starred albums
 		func() error {
-			albumOpts := filter.ApplyLibraryFilter(filter.ByStarred(), musicFolderIds)
+			albumOpts := filter.ApplyLibraryFilter(albumTypeFilter(filter.ByStarred(), false), musicFolderIds)
 			var err error
 			albums, err = api.ds.Album().GetAll(ctx, albumOpts)
 			if err != nil {
@@ -156,6 +178,7 @@ func (api *Router) getStarredItems(r *http.Request) (model.Artists, model.Albums
 		// Query starred media files
 		func() error {
 			mediaFileOpts := filter.ApplyLibraryFilter(filter.ByStarred(), musicFolderIds)
+			mediaFileOpts.Filters = And{mediaFileOpts.Filters, musicTrackFilter()}
 			var err error
 			mediaFiles, err = api.ds.MediaFile().GetAll(ctx, mediaFileOpts)
 			if err != nil {
@@ -241,6 +264,7 @@ func (api *Router) GetRandomSongs(r *http.Request) (*responses.Subsonic, error) 
 		return nil, err
 	}
 	opts := filter.SongsByGenreAndYearRange(genre, fromYear, toYear)
+	opts.Filters = And{opts.Filters, musicTrackFilter()}
 	opts = filter.ApplyLibraryFilter(opts, musicFolderIds)
 	opts.Max = size
 
@@ -268,6 +292,7 @@ func (api *Router) GetSongsByGenre(r *http.Request) (*responses.Subsonic, error)
 		return nil, err
 	}
 	opts := filter.SongsByGenre(genre)
+	opts.Filters = And{opts.Filters, musicTrackFilter()}
 	opts = filter.ApplyLibraryFilter(opts, musicFolderIds)
 
 	ctx := r.Context()

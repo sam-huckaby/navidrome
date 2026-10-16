@@ -34,6 +34,10 @@ type Subsonic struct {
 	SongsByGenre  *Songs             `xml:"songsByGenre,omitempty"                        json:"songsByGenre,omitempty"`
 	Genres        *Genres            `xml:"genres,omitempty"                              json:"genres,omitempty"`
 
+	Audiobooks        *AlbumList2        `xml:"audiobooks,omitempty"        json:"audiobooks,omitempty"`
+	Audiobook         *AlbumWithSongsID3 `xml:"audiobook,omitempty"         json:"audiobook,omitempty"`
+	AudiobookProgress *AudiobookProgress `xml:"audiobookProgress,omitempty" json:"audiobookProgress,omitempty"`
+
 	// ID3
 	Artist              *Artists             `xml:"artists,omitempty"                     json:"artists,omitempty"`
 	ArtistWithAlbumsID3 *ArtistWithAlbumsID3 `xml:"artist,omitempty"                      json:"artist,omitempty"`
@@ -301,6 +305,14 @@ type AlbumList struct {
 
 type AlbumList2 struct {
 	Album []AlbumID3 `xml:"album" json:"album,omitempty"`
+}
+
+type AudiobookProgress struct {
+	AlbumID    string    `xml:"albumId,attr"    json:"albumId"`
+	TrackID    string    `xml:"trackId,attr"    json:"trackId"`
+	PositionMs int64     `xml:"positionMs,attr" json:"positionMs"`
+	Completed  bool      `xml:"completed,attr"  json:"completed"`
+	UpdatedAt  time.Time `xml:"updatedAt,attr"  json:"updatedAt"`
 }
 
 type Playlist struct {
