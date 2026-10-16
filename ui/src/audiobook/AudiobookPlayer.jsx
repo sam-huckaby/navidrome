@@ -30,6 +30,10 @@ const useStyles = makeStyles((theme) => ({
     margin: '0 auto',
     padding: theme.spacing(3, 2, 14),
   },
+  backLink: {
+    color: theme.palette.primary.main,
+    '&:visited': { color: theme.palette.primary.main },
+  },
   hero: {
     display: 'flex',
     alignItems: 'center',
@@ -261,7 +265,9 @@ const AudiobookPlayer = () => {
   return (
     <div className={classes.root}>
       <Title title={`Music: Server - ${album.name}`} />
-      <Link to="/audiobooks">← Audiobooks</Link>
+      <Link className={classes.backLink} to="/audiobooks">
+        ← Audiobooks
+      </Link>
       <div className={classes.hero}>
         <img
           className={classes.art}
