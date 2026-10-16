@@ -133,5 +133,76 @@ var _ = Describe("Audiobook endpoints", func() {
 		Expect(doReqWithUser(reader, "getAudiobookProgress", "id", book.ID).Error.Code).To(Equal(responses.ErrorDataNotFound))
 		Expect(doReqWithUser(reader, "saveAudiobookProgress", "id", book.ID, "trackId", chapterID,
 			"positionMs", "10").Error.Code).To(Equal(responses.ErrorDataNotFound))
+		Expect(doReqWithUser(reader, "getAudiobookAuthors").AudiobookAuthors.Author).To(BeEmpty())
+		Expect(doReqWithUser(reader, "getAudiobookGenres").AudiobookGenres.Genre).To(BeEmpty())
+		Expect(doReqWithUser(reader, "getAudiobookAuthor", "id", book.AlbumArtistID).Error.Code).To(Equal(responses.ErrorDataNotFound))
+	})
+
+	It("provides author rows and paginated audiobook-only author details", func() {
+		authors := doReq("getAudiobookAuthors").AudiobookAuthors.Author
+		Expect(authors).To(HaveLen(1))
+		Expect(authors[0].Id).To(Equal(book.AlbumArtistID))
+		Expect(authors[0].AlbumCount).To(Equal(int32(2)))
+		Expect(authors[0].CoverArt).ToNot(BeEmpty())
+		page := doRawReq("getAudiobookAuthor", "id", authors[0].Id, "size", "1", "offset", "1")
+		Expect(page.Header().Get("x-total-count")).To(Equal("2"))
+		Expect(parseJSONResponse(page).AudiobookAuthor.Album).To(HaveLen(1))
+		Expect(doReq("getAudiobookAuthor", "id", "missing").Error.Code).To(Equal(responses.ErrorDataNotFound))
+		Expect(audiobookXMLRequest("getAudiobookAuthors").Body.String()).To(ContainSubstring("<audiobookAuthors>"))
+		Expect(audiobookXMLRequest("getAudiobookAuthor", "id", authors[0].Id).Body.String()).To(ContainSubstring("<audiobookAuthor"))
+	})
+
+	It("counts only book genres and lists books by genre", func() {
+		genres := doReq("getAudiobookGenres").AudiobookGenres.Genre
+		Expect(genres).To(ContainElement(responses.AudiobookGenre{Value: "Rock", Name: "Rock", AlbumCount: 2, SongCount: 3}))
+		Expect(doReq("getAudiobooks", "type", "byGenre", "genre", "Rock").Audiobooks.Album).To(HaveLen(2))
+		Expect(audiobookXMLRequest("getAudiobookGenres").Body.String()).To(ContainSubstring("<audiobookGenres>"))
+	})
+
+	It("groups untagged and audiobook-only books under a navigable Uncategorized genre", func() {
+		Expect(ds.Tag().Add(ctx, book.LibraryID, model.NewTag(model.TagGenre, "Audiobook"))).To(Succeed())
+		book.Tags = model.Tags{model.TagGenre: {"Audiobook"}}
+		otherBook.Tags = model.Tags{}
+		book.IsAudiobook = true
+		otherBook.IsAudiobook = true
+		Expect(ds.Album().Put(ctx, &book)).To(Succeed())
+		Expect(ds.Album().Put(ctx, &otherBook)).To(Succeed())
+		genres := doReq("getAudiobookGenres").AudiobookGenres.Genre
+		Expect(genres).To(Equal([]responses.AudiobookGenre{{
+			Value: "__audiobook_uncategorized__", Name: "Uncategorized", AlbumCount: 2, SongCount: 3,
+		}}))
+		Expect(doReq("getAudiobooks", "type", "byGenre", "genre", "__audiobook_uncategorized__").Audiobooks.Album).To(HaveLen(2))
+		Expect(doReq("getAudiobooks", "type", "byGenre", "genre", "Audiobook").Audiobooks.Album).To(BeEmpty())
+	})
+
+	It("keeps a subject genre when a book also carries the generic Audiobook tag", func() {
+		Expect(ds.Tag().Add(ctx, book.LibraryID,
+			model.NewTag(model.TagGenre, "Audiobook"), model.NewTag(model.TagGenre, "Fantasy"))).To(Succeed())
+		book.Tags = model.Tags{model.TagGenre: {"Audiobook", "Fantasy"}}
+		book.IsAudiobook = true
+		Expect(ds.Album().Put(ctx, &book)).To(Succeed())
+		genres := doReq("getAudiobookGenres").AudiobookGenres.Genre
+		Expect(genres).To(ContainElement(responses.AudiobookGenre{
+			Value: "Fantasy", Name: "Fantasy", AlbumCount: 1, SongCount: 2,
+		}))
+		Expect(doReq("getAudiobooks", "type", "byGenre", "genre", "Fantasy").Audiobooks.Album).To(HaveLen(1))
+		for _, album := range doReq("getAudiobooks", "type", "byGenre", "genre", "__audiobook_uncategorized__").Audiobooks.Album {
+			Expect(album.Id).ToNot(Equal(book.ID))
+		}
+	})
+
+	It("exposes an Unknown Author row for uncredited books", func() {
+		uncredited := model.Album{ID: "uncredited-book", LibraryID: book.LibraryID,
+			Name: "Uncredited Book", IsAudiobook: true}
+		Expect(ds.Album().Put(ctx, &uncredited)).To(Succeed())
+		authors := doReq("getAudiobookAuthors").AudiobookAuthors.Author
+		Expect(authors).To(ContainElement(SatisfyAll(
+			HaveField("Id", "__audiobook_unknown_author__"),
+			HaveField("Name", "Unknown Author"),
+			HaveField("AlbumCount", int32(1)),
+		)))
+		books := doReq("getAudiobookAuthor", "id", "__audiobook_unknown_author__").AudiobookAuthor.Album
+		Expect(books).To(HaveLen(1))
+		Expect(books[0].Id).To(Equal(uncredited.ID))
 	})
 })

@@ -37,6 +37,9 @@ type Subsonic struct {
 	Audiobooks        *AlbumList2        `xml:"audiobooks,omitempty"        json:"audiobooks,omitempty"`
 	Audiobook         *AlbumWithSongsID3 `xml:"audiobook,omitempty"         json:"audiobook,omitempty"`
 	AudiobookProgress *AudiobookProgress `xml:"audiobookProgress,omitempty" json:"audiobookProgress,omitempty"`
+	AudiobookAuthors  *AudiobookAuthors  `xml:"audiobookAuthors,omitempty"  json:"audiobookAuthors,omitempty"`
+	AudiobookAuthor   *AudiobookAuthor   `xml:"audiobookAuthor,omitempty"   json:"audiobookAuthor,omitempty"`
+	AudiobookGenres   *AudiobookGenres   `xml:"audiobookGenres,omitempty"   json:"audiobookGenres,omitempty"`
 
 	// ID3
 	Artist              *Artists             `xml:"artists,omitempty"                     json:"artists,omitempty"`
@@ -313,6 +316,26 @@ type AudiobookProgress struct {
 	PositionMs int64     `xml:"positionMs,attr" json:"positionMs"`
 	Completed  bool      `xml:"completed,attr"  json:"completed"`
 	UpdatedAt  time.Time `xml:"updatedAt,attr"  json:"updatedAt"`
+}
+
+type AudiobookAuthors struct {
+	Author []ArtistID3 `xml:"author" json:"author,omitempty"`
+}
+
+type AudiobookAuthor struct {
+	ArtistID3
+	Album []AlbumID3 `xml:"album" json:"album,omitempty"`
+}
+
+type AudiobookGenre struct {
+	Value      string `xml:"value,attr"      json:"value"`
+	Name       string `xml:"name,attr"       json:"name"`
+	AlbumCount int32  `xml:"albumCount,attr" json:"albumCount"`
+	SongCount  int32  `xml:"songCount,attr"  json:"songCount"`
+}
+
+type AudiobookGenres struct {
+	Genre []AudiobookGenre `xml:"genre" json:"genre,omitempty"`
 }
 
 type Playlist struct {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	. "github.com/Masterminds/squirrel"
@@ -51,7 +52,15 @@ func (api *Router) getAlbumList(r *http.Request, audiobook bool) (model.Albums, 
 		if err != nil {
 			return nil, 0, err
 		}
-		opts = filter.AlbumsByGenre(genre)
+		if audiobook && genre == uncategorizedAudiobooks {
+			opts = filter.AlbumsByName()
+			opts.Filters = And{opts.Filters, uncategorizedBookFilter()}
+		} else if audiobook && strings.EqualFold(strings.TrimSpace(genre), "audiobook") {
+			opts = filter.AlbumsByName()
+			opts.Filters = And{opts.Filters, Expr("1=0")}
+		} else {
+			opts = filter.AlbumsByGenre(genre)
+		}
 	case "byYear":
 		fromYear, err := p.Int("fromYear")
 		if err != nil {
