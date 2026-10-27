@@ -304,6 +304,10 @@ const wrapperDataProvider = {
       method: 'PUT',
       body: JSON.stringify({ isAudiobook }),
     }).then(() => ({ data: { id } })),
+  deleteAudiobook: (id) =>
+    httpClient(`${REST_URL}/audiobook/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    }).then(() => ({ data: { id } })),
   getAudiobookProgress: (id) =>
     httpClient(`${REST_URL}/audiobook/${encodeURIComponent(id)}/progress`).then(
       ({ json }) => ({ data: json }),

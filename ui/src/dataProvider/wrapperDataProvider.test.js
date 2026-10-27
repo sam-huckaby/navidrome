@@ -201,4 +201,16 @@ describe('wrapperDataProvider', () => {
       )
     })
   })
+
+  it('deletes an audiobook through the admin endpoint', async () => {
+    mockHttpClient.mockResolvedValue({ status: 204 })
+    await expect(
+      wrapperDataProvider.deleteAudiobook('book/1'),
+    ).resolves.toEqual({
+      data: { id: 'book/1' },
+    })
+    expect(mockHttpClient).toHaveBeenCalledWith('/api/audiobook/book%2F1', {
+      method: 'DELETE',
+    })
+  })
 })

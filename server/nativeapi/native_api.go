@@ -94,6 +94,7 @@ func (api *Router) routes() http.Handler {
 		r.With(adminOnlyMiddleware).Group(func(r chi.Router) {
 			r.Get("/logs/stream", streamLogs)
 			api.addAudiobookCategoryRoute(r)
+			r.Delete("/audiobook/{id}", api.deleteAudiobook)
 			api.addMusicUploadRoutes(r)
 			api.addAlbumTagRoutes(r)
 			api.addInspectRoute(r)

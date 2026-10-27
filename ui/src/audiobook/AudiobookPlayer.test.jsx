@@ -1,5 +1,11 @@
 import React from 'react'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import { createTheme, ThemeProvider } from '@material-ui/core/styles'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import AudiobookPlayer from './AudiobookPlayer'
@@ -9,21 +15,28 @@ const provider = {
   getList: vi.fn(),
   getAudiobookProgress: vi.fn(),
   saveAudiobookProgress: vi.fn(),
+  deleteAudiobook: vi.fn(),
 }
 const dispatch = vi.fn()
-const { streamUrl } = vi.hoisted(() => ({
+const push = vi.fn()
+const refresh = vi.fn()
+let permissions = 'regular'
+const { streamUrl, startScan } = vi.hoisted(() => ({
   streamUrl: vi.fn((id) => `/stream/${id}?_=${Date.now()}`),
+  startScan: vi.fn(),
 }))
 vi.mock('react-admin', async (importOriginal) => ({
   ...(await importOriginal()),
   Title: () => null,
   useDataProvider: () => provider,
   useNotify: () => vi.fn(),
-  usePermissions: () => ({ permissions: 'regular' }),
+  usePermissions: () => ({ permissions }),
+  useRefresh: () => refresh,
 }))
 vi.mock('react-router-dom', async (importOriginal) => ({
   ...(await importOriginal()),
   useParams: () => ({ id: 'al-book' }),
+  useHistory: () => ({ push }),
   Link: ({ children }) => <span>{children}</span>,
 }))
 vi.mock('react-redux', () => ({
@@ -34,18 +47,21 @@ vi.mock('../subsonic', () => ({
   default: {
     streamUrl,
     getCoverArtUrl: () => '/cover',
+    startScan,
   },
 }))
 
 describe('AudiobookPlayer', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    permissions = 'regular'
     provider.getOne.mockResolvedValue({
       data: {
         id: 'al-book',
         name: 'The Book',
         albumArtist: 'Reader',
         isAudiobook: true,
+        libraryId: 1,
       },
     })
     provider.getList.mockResolvedValue({
@@ -72,6 +88,8 @@ describe('AudiobookPlayer', () => {
     provider.saveAudiobookProgress.mockResolvedValue({
       data: { id: 'al-book' },
     })
+    provider.deleteAudiobook.mockResolvedValue({ data: { id: 'al-book' } })
+    startScan.mockResolvedValue({})
     vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue()
     vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {})
   })
@@ -149,5 +167,51 @@ describe('AudiobookPlayer', () => {
       }),
     )
     expect(screen.getByText(/Finished/)).toBeInTheDocument()
+  })
+
+  it('only lets admins confirm permanent deletion and returns to the audiobook library', async () => {
+    const { unmount } = render(
+      <ThemeProvider theme={createTheme()}>
+        <AudiobookPlayer />
+      </ThemeProvider>,
+    )
+    await screen.findByRole('heading', { name: 'Chapter 2' })
+    expect(screen.queryByRole('button', { name: 'Delete book' })).toBeNull()
+    unmount()
+    await waitFor(() =>
+      expect(provider.saveAudiobookProgress).toHaveBeenCalled(),
+    )
+    provider.saveAudiobookProgress.mockClear()
+
+    permissions = 'admin'
+    const view = render(
+      <ThemeProvider theme={createTheme()}>
+        <AudiobookPlayer />
+      </ThemeProvider>,
+    )
+    await screen.findByRole('heading', { name: 'Chapter 2' })
+    fireEvent.click(screen.getByRole('button', { name: 'Delete book' }))
+    expect(screen.getByText(/Permanently delete The Book/)).toBeInTheDocument()
+    fireEvent.click(
+      within(screen.getByRole('dialog')).getByRole('button', {
+        name: 'Cancel',
+      }),
+    )
+    expect(provider.deleteAudiobook).not.toHaveBeenCalled()
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Delete book' }))
+    fireEvent.click(
+      within(screen.getByRole('dialog')).getByRole('button', {
+        name: 'Delete book',
+      }),
+    )
+    await waitFor(() => expect(push).toHaveBeenCalledWith('/audiobooks'))
+    expect(provider.deleteAudiobook).toHaveBeenCalledWith('al-book')
+    expect(refresh).toHaveBeenCalled()
+    expect(startScan).toHaveBeenCalledWith({ target: ['1:'] })
+    view.unmount()
+    expect(provider.saveAudiobookProgress).not.toHaveBeenCalled()
   })
 })

@@ -350,6 +350,21 @@ var _ = Describe("MediaFiles", func() {
 				})
 			})
 			Context("Album Art", func() {
+				It("selects the first art-bearing chapter when disc numbers are missing", func() {
+					mfs = MediaFiles{
+						{Path: "Book/03.mp3", HasCoverArt: true},
+						{Path: "Book/01.mp3", HasCoverArt: true},
+						{Path: "Book/02.mp3", HasCoverArt: true},
+					}
+					Expect(mfs.ToAlbum().EmbedArtPath).To(Equal("Book/01.mp3"))
+				})
+				It("keeps the first chapter's art when later chapters have none", func() {
+					mfs = MediaFiles{
+						{Path: "Book/02.mp3"},
+						{Path: "Book/01.mp3", HasCoverArt: true},
+					}
+					Expect(mfs.ToAlbum().EmbedArtPath).To(Equal("Book/01.mp3"))
+				})
 				When("we have media files with cover art from multiple discs", func() {
 					BeforeEach(func() {
 						mfs = MediaFiles{

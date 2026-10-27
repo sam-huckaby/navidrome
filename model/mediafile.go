@@ -498,14 +498,14 @@ func fixAlbumArtist(a *Album) {
 }
 
 // firstArtPath determines which media file path should be used for album artwork
-// based on disc number (preferring lower disc numbers) and path (for consistency)
+// based on disc number (preferring numbered, lower discs) and path (for consistency)
 func firstArtPath(currentPath string, currentDisc int, m MediaFile) (string, int) {
 	if !m.HasCoverArt {
 		return currentPath, currentDisc
 	}
 
-	// If current has no disc number (currentDisc == 0) or new file has lower disc number
-	if currentDisc == 0 || (m.DiscNumber < currentDisc && m.DiscNumber > 0) {
+	if currentPath == "" || (currentDisc == 0 && m.DiscNumber > 0) ||
+		(m.DiscNumber > 0 && m.DiscNumber < currentDisc) {
 		return m.Path, m.DiscNumber
 	}
 

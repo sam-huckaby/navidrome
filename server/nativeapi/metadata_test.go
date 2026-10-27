@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -164,6 +165,116 @@ var _ = Describe("Metadata API", func() {
 			w = httptest.NewRecorder()
 			router.ServeHTTP(w, createAuthenticatedRequest("PUT", "/audiobook/al-1/progress", bytes.NewBufferString(`{"trackId":"wrong","positionMs":4000}`), userToken))
 			Expect(w.Code).To(Equal(http.StatusBadRequest))
+		})
+	})
+
+	Describe("audiobook deletion", func() {
+		var libraryPath string
+		var files *tests.MockMediaFileRepo
+		BeforeEach(func() {
+			libraryPath = GinkgoT().TempDir()
+			libs := &tests.MockLibraryRepo{}
+			libs.SetData(model.Libraries{{ID: 1, Name: "Books", Path: libraryPath}})
+			ds.MockedLibrary = libs
+			Expect(albumRepo.Put(ctx, &model.Album{ID: "al-1", Name: "Book", LibraryID: 1, IsAudiobook: true})).To(Succeed())
+			files = tests.CreateMockMediaFileRepo()
+			ds.MockedMediaFile = files
+		})
+
+		It("restricts deletion to admins and removes an exclusive book's chapters, cover and catalogue entries", func() {
+			folder := filepath.Join(libraryPath, "Author", "Book")
+			Expect(os.MkdirAll(folder, 0755)).To(Succeed())
+			Expect(os.WriteFile(filepath.Join(folder, "01.mp3"), []byte("chapter"), 0644)).To(Succeed())
+			Expect(os.WriteFile(filepath.Join(folder, "cover.jpg"), []byte("cover"), 0644)).To(Succeed())
+			files.SetData(model.MediaFiles{{ID: "chapter", AlbumID: "al-1", LibraryID: 1, Path: "Author/Book/01.mp3"}})
+
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, createAuthenticatedRequest("DELETE", "/audiobook/al-1", nil, userToken))
+			Expect(w.Code).To(Equal(http.StatusForbidden))
+			_, err := os.Stat(filepath.Join(folder, "01.mp3"))
+			Expect(err).ToNot(HaveOccurred())
+
+			w = httptest.NewRecorder()
+			router.ServeHTTP(w, createAuthenticatedRequest("DELETE", "/audiobook/al-1", nil, adminToken))
+			Expect(w.Code).To(Equal(http.StatusNoContent), w.Body.String())
+			_, err = os.Stat(filepath.Join(folder, "01.mp3"))
+			Expect(errors.Is(err, os.ErrNotExist)).To(BeTrue())
+			_, err = os.Stat(filepath.Join(folder, "cover.jpg"))
+			Expect(errors.Is(err, os.ErrNotExist)).To(BeTrue())
+			_, err = files.Get(ctx, "chapter")
+			Expect(errors.Is(err, model.ErrNotFound)).To(BeTrue())
+			Expect(ds.GCCalled).To(BeTrue())
+		})
+
+		It("leaves shared-folder artwork and other chapters intact", func() {
+			folder := filepath.Join(libraryPath, "Shared")
+			Expect(os.Mkdir(folder, 0755)).To(Succeed())
+			for _, name := range []string{"book.mp3", "music.mp3", "cover.jpg"} {
+				Expect(os.WriteFile(filepath.Join(folder, name), []byte(name), 0644)).To(Succeed())
+			}
+			files.SetData(model.MediaFiles{
+				{ID: "book", AlbumID: "al-1", LibraryID: 1, Path: "Shared/book.mp3"},
+				{ID: "music", AlbumID: "other", LibraryID: 1, Path: "Shared/music.mp3"},
+			})
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, createAuthenticatedRequest("DELETE", "/audiobook/al-1", nil, adminToken))
+			Expect(w.Code).To(Equal(http.StatusNoContent), w.Body.String())
+			for _, name := range []string{"music.mp3", "cover.jpg"} {
+				_, err := os.Stat(filepath.Join(folder, name))
+				Expect(err).ToNot(HaveOccurred())
+			}
+			_, err := files.Get(ctx, "music")
+			Expect(err).ToNot(HaveOccurred())
+		})
+
+		It("removes a cover in the book root when chapters live in disc folders", func() {
+			folder := filepath.Join(libraryPath, "Author", "Book")
+			for _, disc := range []string{"CD1", "CD2"} {
+				Expect(os.MkdirAll(filepath.Join(folder, disc), 0755)).To(Succeed())
+				Expect(os.WriteFile(filepath.Join(folder, disc, "01.mp3"), []byte("chapter"), 0644)).To(Succeed())
+			}
+			Expect(os.WriteFile(filepath.Join(folder, "cover.jpg"), []byte("cover"), 0644)).To(Succeed())
+			files.SetData(model.MediaFiles{
+				{ID: "one", AlbumID: "al-1", LibraryID: 1, Path: "Author/Book/CD1/01.mp3"},
+				{ID: "two", AlbumID: "al-1", LibraryID: 1, Path: "Author/Book/CD2/01.mp3"},
+			})
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, createAuthenticatedRequest("DELETE", "/audiobook/al-1", nil, adminToken))
+			Expect(w.Code).To(Equal(http.StatusNoContent), w.Body.String())
+			_, err := os.Stat(folder)
+			Expect(errors.Is(err, os.ErrNotExist)).To(BeTrue())
+		})
+
+		It("removes the parent cover when only one disc folder has chapters", func() {
+			folder := filepath.Join(libraryPath, "Author", "Book")
+			Expect(os.MkdirAll(filepath.Join(folder, "CD1"), 0755)).To(Succeed())
+			Expect(os.WriteFile(filepath.Join(folder, "CD1", "01.mp3"), []byte("chapter"), 0644)).To(Succeed())
+			Expect(os.WriteFile(filepath.Join(folder, "cover.jpg"), []byte("cover"), 0644)).To(Succeed())
+			files.SetData(model.MediaFiles{{ID: "chapter", AlbumID: "al-1", LibraryID: 1, Path: "Author/Book/CD1/01.mp3"}})
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, createAuthenticatedRequest("DELETE", "/audiobook/al-1", nil, adminToken))
+			Expect(w.Code).To(Equal(http.StatusNoContent), w.Body.String())
+			_, err := os.Stat(folder)
+			Expect(errors.Is(err, os.ErrNotExist)).To(BeTrue())
+		})
+
+		It("does not delete albums that are not audiobooks", func() {
+			Expect(albumRepo.Put(ctx, &model.Album{ID: "al-1", LibraryID: 1})).To(Succeed())
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, createAuthenticatedRequest("DELETE", "/audiobook/al-1", nil, adminToken))
+			Expect(w.Code).To(Equal(http.StatusNotFound))
+		})
+
+		It("rejects symlinked paths before deleting any chapter", func() {
+			outside := GinkgoT().TempDir()
+			Expect(os.WriteFile(filepath.Join(outside, "chapter.mp3"), []byte("outside"), 0644)).To(Succeed())
+			Expect(os.Symlink(outside, filepath.Join(libraryPath, "link"))).To(Succeed())
+			files.SetData(model.MediaFiles{{ID: "chapter", AlbumID: "al-1", LibraryID: 1, Path: "link/chapter.mp3"}})
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, createAuthenticatedRequest("DELETE", "/audiobook/al-1", nil, adminToken))
+			Expect(w.Code).To(Equal(http.StatusConflict))
+			_, err := os.Stat(filepath.Join(outside, "chapter.mp3"))
+			Expect(err).ToNot(HaveOccurred())
 		})
 	})
 

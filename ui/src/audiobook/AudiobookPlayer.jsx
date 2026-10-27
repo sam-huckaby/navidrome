@@ -1,10 +1,15 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, useHistory, Link } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import {
   Button,
   Card,
   CardContent,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   IconButton,
   MenuItem,
   Slider,
@@ -18,7 +23,7 @@ import SkipNextIcon from '@material-ui/icons/SkipNext'
 import SkipPreviousIcon from '@material-ui/icons/SkipPrevious'
 import Replay10Icon from '@material-ui/icons/Replay10'
 import Forward30Icon from '@material-ui/icons/Forward30'
-import { Title, useDataProvider } from 'react-admin'
+import { Title, useDataProvider, usePermissions, useRefresh } from 'react-admin'
 import { clearQueue } from '../actions'
 import subsonic from '../subsonic'
 import AudiobookCategoryButton from './AudiobookCategoryButton'
@@ -77,8 +82,11 @@ const formatTime = (seconds) => {
 
 const AudiobookPlayer = () => {
   const { id } = useParams()
+  const history = useHistory()
   const classes = useStyles()
   const dataProvider = useDataProvider()
+  const { permissions } = usePermissions()
+  const refresh = useRefresh()
   const dispatch = useDispatch()
   const musicQueueLength = useSelector(
     (state) => state.player?.queue?.length || 0,
@@ -99,6 +107,8 @@ const AudiobookPlayer = () => {
   const [completed, setCompleted] = useState(false)
   const [speed, setSpeed] = useState(1)
   const [error, setError] = useState('')
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   const chapter = chapters[index]
   const chapterId = chapter?.id
@@ -208,6 +218,28 @@ const AudiobookPlayer = () => {
     }
   }
 
+  const deleteBook = async () => {
+    setDeleting(true)
+    try {
+      await dataProvider.deleteAudiobook(id)
+      currentRef.current = null
+      ended.current = true
+      audioRef.current?.pause()
+      try {
+        await subsonic.startScan({ target: [`${album.libraryId}:`] })
+      } catch {
+        // The files and catalogue entry are already gone; scanning can be retried later.
+      }
+      refresh()
+      setDeleting(false)
+      history.push('/audiobooks')
+    } catch {
+      setError('Could not delete this audiobook.')
+      setConfirmDelete(false)
+      setDeleting(false)
+    }
+  }
+
   const selectChapter = (newIndex, autoplay = playing) => {
     if (newIndex < 0 || newIndex >= chapters.length) return
     if (newIndex === index) {
@@ -285,6 +317,11 @@ const AudiobookPlayer = () => {
             {album.albumArtist} · {chapters.length} chapters
           </Typography>
           <AudiobookCategoryButton album={album} />
+          {permissions === 'admin' && (
+            <Button color="secondary" onClick={() => setConfirmDelete(true)}>
+              Delete book
+            </Button>
+          )}
         </div>
       </div>
       {chapter && (
@@ -438,6 +475,27 @@ const AudiobookPlayer = () => {
           <span>{formatTime(track.duration)}</span>
         </Button>
       ))}
+      <Dialog
+        open={confirmDelete}
+        onClose={() => !deleting && setConfirmDelete(false)}
+        aria-labelledby="delete-book-title"
+      >
+        <DialogTitle id="delete-book-title">Delete audiobook?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Permanently delete {album.name}, its chapters and its cover files
+            from the server? This cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button disabled={deleting} onClick={() => setConfirmDelete(false)}>
+            Cancel
+          </Button>
+          <Button color="secondary" disabled={deleting} onClick={deleteBook}>
+            Delete book
+          </Button>
+        </DialogActions>
+      </Dialog>
     </div>
   )
 }
