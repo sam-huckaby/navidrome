@@ -56,6 +56,9 @@ const music = {
       },
     },
     RaSidebar: {
+      // The sidebar's fixed inner panel handles scrolling; the docked wrapper
+      // must not force a full viewport of height below the app bar.
+      root: { height: 'auto' },
       fixed: {
         height: 'calc(100vh - 64px)',
         backgroundColor: colors.sidebar,
