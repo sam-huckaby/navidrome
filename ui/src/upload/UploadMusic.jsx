@@ -16,7 +16,7 @@ import { Title, useDataProvider, usePermissions } from 'react-admin'
 import subsonic from '../subsonic'
 
 const useStyles = makeStyles((theme) => ({
-  root: { maxWidth: 960, width: '100%', margin: '24px auto 100px' },
+  root: { maxWidth: 960, width: '100%', margin: '24px auto 0' },
   card: { padding: theme.spacing(2), marginBottom: theme.spacing(2) },
   actions: {
     display: 'flex',
@@ -118,13 +118,7 @@ const UploadMusic = () => {
         sort: { field: 'name', order: 'ASC' },
         filter: {},
       })
-      .then(({ data }) => {
-        setLibraries(data)
-        if (data.length)
-          setLibraryId(
-            String(data.find((lib) => lib.id === 1)?.id || data[0].id),
-          )
-      })
+      .then(({ data }) => setLibraries(data))
       .catch(() => setError('Could not load music libraries.'))
     dataProvider
       .musicUploadStatus()
@@ -245,6 +239,7 @@ const UploadMusic = () => {
     setCandidates({})
     setProgress(0)
     setSessionId(null)
+    setLibraryId('')
     setPhase('select')
     setResult(null)
     setError('')
@@ -283,8 +278,13 @@ const UploadMusic = () => {
               fullWidth
               label="Destination library"
               value={libraryId}
+              InputLabelProps={{ shrink: true }}
+              SelectProps={{ displayEmpty: true }}
               onChange={(e) => setLibraryId(e.target.value)}
             >
+              <MenuItem value="" disabled>
+                Select library
+              </MenuItem>
               {libraries.map((lib) => (
                 <MenuItem value={String(lib.id)} key={lib.id}>
                   {lib.name}

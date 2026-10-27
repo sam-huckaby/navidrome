@@ -25,6 +25,13 @@ vi.mock('../subsonic', () => ({
   default: { startScan: (...args) => mockStartScan(...args) },
 }))
 
+const selectLibrary = async (name = 'Music') => {
+  fireEvent.mouseDown(
+    screen.getByRole('button', { name: /^Destination library/ }),
+  )
+  fireEvent.click(await screen.findByRole('option', { name }))
+}
+
 describe('UploadMusic', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -64,6 +71,20 @@ describe('UploadMusic', () => {
   })
 
   it('uploads a selected folder and scans the chosen library when fpcalc is missing', async () => {
+    provider.getList.mockResolvedValue({
+      data: [
+        { id: 1, name: 'Music' },
+        { id: 2, name: 'Audiobooks' },
+      ],
+    })
+    provider.importMusicUpload.mockResolvedValue({
+      data: {
+        imported: ['Album/song.mp3'],
+        skipped: [],
+        unmatched: [],
+        libraryId: 2,
+      },
+    })
     render(
       <ThemeProvider theme={createTheme()}>
         <UploadMusic />
@@ -76,15 +97,19 @@ describe('UploadMusic', () => {
     fireEvent.change(screen.getByLabelText('Choose a music folder'), {
       target: { files: [file] },
     })
+    expect(screen.getByText('Select library')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Upload folder' })).toBeDisabled()
+    await selectLibrary('Audiobooks')
     fireEvent.click(
       await screen.findByRole('button', { name: 'Upload folder' }),
     )
+    expect(provider.createMusicUpload).toHaveBeenCalledWith(2)
     expect(await screen.findByText('Review metadata')).toBeInTheDocument()
     expect(provider.sendMusicUploadFile).toHaveBeenCalledWith('session-1', file)
     fireEvent.click(screen.getByRole('button', { name: 'Import music' }))
     expect(await screen.findByText('Import complete')).toBeInTheDocument()
     await waitFor(() =>
-      expect(mockStartScan).toHaveBeenCalledWith({ target: ['1:'] }),
+      expect(mockStartScan).toHaveBeenCalledWith({ target: ['2:'] }),
     )
     // The server removes completed sessions, so cleanup may return 404.
     provider.cancelMusicUpload.mockRejectedValue(new Error('Not found'))
@@ -95,6 +120,8 @@ describe('UploadMusic', () => {
       await screen.findByLabelText('Choose a music folder'),
     ).toBeInTheDocument()
     expect(screen.queryByText('Import complete')).not.toBeInTheDocument()
+    expect(screen.getByText('Select library')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Upload folder' })).toBeDisabled()
   })
 
   it('automatically fills missing metadata from a confident matching recording', async () => {
@@ -140,6 +167,7 @@ describe('UploadMusic', () => {
     fireEvent.change(screen.getByLabelText('Choose a music folder'), {
       target: { files: [file] },
     })
+    await selectLibrary()
     await screen.findByRole('button', { name: 'Upload folder' })
     fireEvent.click(screen.getByRole('button', { name: 'Upload folder' }))
     expect(await screen.findByRole('textbox', { name: 'Title' })).toHaveValue(
@@ -187,6 +215,7 @@ describe('UploadMusic', () => {
     fireEvent.change(screen.getByLabelText('Choose a music folder'), {
       target: { files: [a, b] },
     })
+    await selectLibrary()
     fireEvent.click(
       await screen.findByRole('button', { name: 'Upload folder' }),
     )
