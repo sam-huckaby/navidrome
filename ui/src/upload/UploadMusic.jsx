@@ -245,9 +245,9 @@ const UploadMusic = () => {
     setCandidates({})
     setProgress(0)
     setSessionId(null)
+    setPhase('select')
     setResult(null)
     setError('')
-    setPhase('select')
   }
 
   const incomplete = tracks.some(

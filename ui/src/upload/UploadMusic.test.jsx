@@ -86,6 +86,15 @@ describe('UploadMusic', () => {
     await waitFor(() =>
       expect(mockStartScan).toHaveBeenCalledWith({ target: ['1:'] }),
     )
+    // The server removes completed sessions, so cleanup may return 404.
+    provider.cancelMusicUpload.mockRejectedValue(new Error('Not found'))
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Upload another folder' }),
+    )
+    expect(
+      await screen.findByLabelText('Choose a music folder'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('Import complete')).not.toBeInTheDocument()
   })
 
   it('automatically fills missing metadata from a confident matching recording', async () => {
