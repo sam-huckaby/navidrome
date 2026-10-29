@@ -49,6 +49,8 @@ type configOptions struct {
 	BaseScheme                      string
 	TLSCert                         string
 	TLSKey                          string
+	ACMEHost                        string
+	ACMEEmail                       string
 	UILoginBackgroundURL            string
 	UIWelcomeMessage                string
 	MaxSidebarPlaylists             int
@@ -319,10 +321,9 @@ var currentGOOS = func() string {
 	return runtime.GOOS
 }
 
-// TLSEnabled reports whether the server serves HTTPS. Both halves are required,
-// so callers cannot infer it from the certificate alone.
+// TLSEnabled reports whether HTTPS is configured through ACME or a certificate/key pair.
 func (c *configOptions) TLSEnabled() bool {
-	return c.TLSCert != "" && c.TLSKey != ""
+	return c.ACMEHost != "" || c.TLSCert != "" && c.TLSKey != ""
 }
 
 var (
@@ -986,6 +987,8 @@ func setViperDefaults() {
 	viper.SetDefault("baseurl", "")
 	viper.SetDefault("tlscert", "")
 	viper.SetDefault("tlskey", "")
+	viper.SetDefault("acmehost", "")
+	viper.SetDefault("acmeemail", "")
 	viper.SetDefault("uiloginbackgroundurl", consts.DefaultUILoginBackgroundURL)
 	viper.SetDefault("uiwelcomemessage", "")
 	viper.SetDefault("maxsidebarplaylists", consts.DefaultMaxSidebarPlaylists)

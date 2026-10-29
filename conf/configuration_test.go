@@ -561,4 +561,9 @@ var _ = Describe("TLSEnabled", func() {
 		conf.Server.TLSKey = "key.pem"
 		Expect(conf.Server.TLSEnabled()).To(BeFalse())
 	})
+
+	It("is true when ACME is configured", func() {
+		conf.Server.ACMEHost = "music.example.com"
+		Expect(conf.Server.TLSEnabled()).To(BeTrue())
+	})
 })

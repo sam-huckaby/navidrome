@@ -33,6 +33,10 @@ please file a [GitHub issue](https://github.com/navidrome/navidrome/issues) or j
 
 See instructions on the [project's website](https://www.navidrome.org/docs/installation/)
 
+For the bundled Music PWA at `/pwa/` and private HTTPS with Cloudflare DNS-01,
+see [PWA deployment](PWA_DEPLOYMENT.md). The production environment template is
+[`.env.example`](.env.example).
+
 ### Uploading music from the browser
 
 Administrators can open **Upload Music** in the sidebar, select a local music folder

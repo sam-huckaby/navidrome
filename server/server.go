@@ -59,6 +59,7 @@ func (s *Server) MountRouter(description, urlPath string, subRouter http.Handler
 func (s *Server) Run(ctx context.Context, addr string, port int, tlsCert string, tlsKey string) error {
 	// Mount the router for the frontend assets
 	s.MountRouter("WebUI", consts.URLPathUI, s.frontendAssetsHandler())
+	s.MountRouter("Music PWA", "/pwa", pwaAssetsHandler(ui.PWABuildAssets()))
 
 	// Create a new http.Server with the specified read header timeout and handler
 	server := &http.Server{
@@ -67,12 +68,26 @@ func (s *Server) Run(ctx context.Context, addr string, port int, tlsCert string,
 	}
 
 	// Determine if TLS is enabled
-	tlsEnabled := tlsCert != "" && tlsKey != ""
+	tlsEnabled := tlsCert != "" && tlsKey != "" || conf.Server.ACMEHost != ""
+	if (tlsCert == "") != (tlsKey == "") {
+		return errors.New("TLSCert and TLSKey must both be set")
+	}
+	if conf.Server.ACMEHost != "" && (tlsCert != "" || tlsKey != "") {
+		return errors.New("ACMEHost cannot be used with TLSCert/TLSKey")
+	}
 
 	// Validate TLS certificates before starting the server
 	if tlsEnabled {
-		if err := validateTLSCertificates(tlsCert, tlsKey); err != nil {
-			return err
+		if conf.Server.ACMEHost != "" {
+			stop, err := configureACMETLS(ctx, server)
+			if err != nil {
+				return err
+			}
+			defer stop()
+		} else {
+			if err := validateTLSCertificates(tlsCert, tlsKey); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -99,7 +114,7 @@ func (s *Server) Run(ctx context.Context, addr string, port int, tlsCert string,
 		var err error
 		if tlsEnabled {
 			// Start the HTTPS server
-			log.Info("Starting server with TLS (HTTPS) enabled", "tlsCert", tlsCert, "tlsKey", tlsKey)
+			log.Info("Starting server with TLS (HTTPS) enabled", "acmeHost", conf.Server.ACMEHost)
 			err = server.ServeTLS(listener, tlsCert, tlsKey)
 		} else {
 			// Start the HTTP server

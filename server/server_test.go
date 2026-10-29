@@ -193,6 +193,18 @@ var _ = Describe("TLS support", func() {
 					return nil
 				}, 2*time.Second, 100*time.Millisecond).Should(Succeed())
 
+				// The separate PWA is served by the same TLS listener.
+				resp, err := httpClient.Get("https://127.0.0.1:14534/pwa/")
+				Expect(err).ToNot(HaveOccurred())
+				Expect(resp.StatusCode).To(Equal(http.StatusOK))
+				Expect(resp.Header.Get("Content-Type")).To(ContainSubstring("text/html"))
+				Expect(resp.Body.Close()).To(Succeed())
+
+				resp, err = httpClient.Get("https://127.0.0.1:14534/pwa/assets/missing.js")
+				Expect(err).ToNot(HaveOccurred())
+				Expect(resp.StatusCode).To(Equal(http.StatusNotFound))
+				Expect(resp.Body.Close()).To(Succeed())
+
 				// Stop the server
 				cancel()
 
