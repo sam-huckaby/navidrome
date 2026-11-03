@@ -71,6 +71,7 @@ const startScan = (options) => httpClient(url('startScan', null, options))
 const getScanStatus = () => httpClient(url('getScanStatus'))
 
 const getNowPlaying = () => httpClient(url('getNowPlaying'))
+const getAudiobook = (id) => httpClient(url('getAudiobook', id))
 
 const getAvatarUrl = (username, size) =>
   baseUrl(
@@ -143,6 +144,7 @@ const streamUrl = (id, options) => {
 export default {
   url,
   ping,
+  getAudiobook,
   reportPlayback,
   reportPlaybackKeepalive,
   download,

@@ -68,6 +68,7 @@ type MediaFile struct {
 	Channels             int      `structs:"channels" json:"channels"`
 	Codec                string   `structs:"codec" json:"codec"`
 	ProbeData            string   `structs:"probe_data" json:"-" hash:"ignore"`
+	ChapterData          string   `structs:"chapter_data" json:"-" hash:"ignore"`
 	Genre                string   `structs:"genre" json:"genre"`
 	Genres               Genres   `structs:"-" json:"genres,omitempty"`
 	SortTitle            string   `structs:"sort_title" json:"sortTitle,omitempty"`

@@ -3,10 +3,12 @@ package scanner
 import (
 	"cmp"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"maps"
 	"path"
+	"path/filepath"
 	"slices"
 	"sync"
 	"sync/atomic"
@@ -16,6 +18,7 @@ import (
 	ppl "github.com/google/go-pipeline/pkg/pipeline"
 	"github.com/navidrome/navidrome/conf"
 	"github.com/navidrome/navidrome/consts"
+	"github.com/navidrome/navidrome/core/audiobook"
 	"github.com/navidrome/navidrome/core/storage"
 	"github.com/navidrome/navidrome/log"
 	"github.com/navidrome/navidrome/model"
@@ -301,6 +304,15 @@ func (p *phaseFolders) loadTagsFromFiles(entry *folderEntry, toImport map[string
 		for filePath, info := range allInfo {
 			md := metadata.New(filePath, info)
 			track := md.ToMediaFile(entry.job.lib, entry.id)
+			if track.Suffix == "mp3" && filepath.IsAbs(entry.job.lib.Path) {
+				contents, readErr := audiobook.Read(filepath.Join(entry.job.lib.Path, filepath.FromSlash(filePath)))
+				if readErr != nil {
+					log.Warn(p.ctx, "Scanner: Could not read embedded chapters", "file", filePath, readErr)
+				} else if len(contents.Chapters) > 0 {
+					data, _ := json.Marshal(contents)
+					track.ChapterData = string(data)
+				}
+			}
 			tracks = append(tracks, track)
 			for _, t := range track.Tags.FlattenAll() {
 				uniqueTags[t.ID] = t

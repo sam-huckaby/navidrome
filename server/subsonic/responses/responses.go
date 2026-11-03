@@ -299,7 +299,28 @@ type ArtistWithAlbumsID3 struct {
 
 type AlbumWithSongsID3 struct {
 	AlbumID3
-	Song []Child `xml:"song"                               json:"song,omitempty"`
+	Song             []Child           `xml:"song"                               json:"song,omitempty"`
+	EmbeddedChapters []EmbeddedChapter `xml:"embeddedChapter,omitempty" json:"embeddedChapter,omitempty"`
+	BookGroups       []BookGroup       `xml:"bookGroup,omitempty" json:"bookGroup,omitempty"`
+}
+
+// EmbeddedChapter and BookGroup extend getAudiobook without changing its song list.
+// Times are absolute positions within the referenced media file in milliseconds.
+type EmbeddedChapter struct {
+	ID      string `xml:"id,attr" json:"id"`
+	TrackID string `xml:"trackId,attr" json:"trackId"`
+	Title   string `xml:"title,attr" json:"title"`
+	StartMs int64  `xml:"startMs,attr" json:"startMs"`
+	EndMs   int64  `xml:"endMs,attr" json:"endMs"`
+}
+
+type BookGroup struct {
+	ID         string   `xml:"id,attr" json:"id"`
+	TrackID    string   `xml:"trackId,attr" json:"trackId"`
+	Title      string   `xml:"title,attr" json:"title"`
+	StartMs    int64    `xml:"startMs,attr" json:"startMs"`
+	EndMs      int64    `xml:"endMs,attr" json:"endMs"`
+	ChapterIDs []string `xml:"chapterId,omitempty" json:"chapterIds"`
 }
 
 type AlbumList struct {

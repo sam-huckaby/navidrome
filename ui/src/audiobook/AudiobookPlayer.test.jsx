@@ -21,9 +21,10 @@ const dispatch = vi.fn()
 const push = vi.fn()
 const refresh = vi.fn()
 let permissions = 'regular'
-const { streamUrl, startScan } = vi.hoisted(() => ({
+const { streamUrl, startScan, getAudiobook } = vi.hoisted(() => ({
   streamUrl: vi.fn((id) => `/stream/${id}?_=${Date.now()}`),
   startScan: vi.fn(),
+  getAudiobook: vi.fn(),
 }))
 vi.mock('react-admin', async (importOriginal) => ({
   ...(await importOriginal()),
@@ -48,6 +49,7 @@ vi.mock('../subsonic', () => ({
     streamUrl,
     getCoverArtUrl: () => '/cover',
     startScan,
+    getAudiobook,
   },
 }))
 
@@ -90,6 +92,7 @@ describe('AudiobookPlayer', () => {
     })
     provider.deleteAudiobook.mockResolvedValue({ data: { id: 'al-book' } })
     startScan.mockResolvedValue({})
+    getAudiobook.mockResolvedValue({ json: { 'subsonic-response': { audiobook: {} } } })
     vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue()
     vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {})
   })
@@ -119,6 +122,28 @@ describe('AudiobookPlayer', () => {
         completed: false,
       }),
     )
+  })
+
+  it('seeks to a named book and its chapters without loading another audio file', async () => {
+    getAudiobook.mockResolvedValue({ json: { 'subsonic-response': { audiobook: {
+      embeddedChapter: [
+        { id: 'a', trackId: 'chapter-2', title: 'Opening', startMs: 0, endMs: 45000 },
+        { id: 'b', trackId: 'chapter-2', title: 'Chapter 1', startMs: 45000, endMs: 180000 },
+      ],
+      bookGroup: [{ id: 'book', trackId: 'chapter-2', title: 'Book One', startMs: 45000, endMs: 180000, chapterIds: ['b'] }],
+    } } } })
+    const { container } = render(<ThemeProvider theme={createTheme()}><AudiobookPlayer /></ThemeProvider>)
+    await screen.findByRole('button', { name: /Book One/ })
+    const audio = container.querySelector('audio')
+    Object.defineProperty(audio, 'duration', { value: 180, configurable: true })
+    fireEvent.loadedMetadata(audio)
+    const src = audio.src
+    fireEvent.click(screen.getByRole('button', { name: /Book One/ }))
+    expect(audio.currentTime).toBe(45)
+    expect(audio.src).toBe(src)
+    await waitFor(() => expect(provider.saveAudiobookProgress).toHaveBeenCalledWith('al-book', {
+      trackId: 'chapter-2', positionMs: 45000, completed: false,
+    }))
   })
 
   it('keeps the stream URL stable during playback updates and changes it for a new chapter', async () => {

@@ -100,6 +100,8 @@ const AudiobookPlayer = () => {
   const saveQueue = useRef(Promise.resolve())
   const [album, setAlbum] = useState(null)
   const [chapters, setChapters] = useState([])
+  const [embeddedChapters, setEmbeddedChapters] = useState([])
+  const [bookGroups, setBookGroups] = useState([])
   const [index, setIndex] = useState(0)
   const [position, setPosition] = useState(0)
   const [duration, setDuration] = useState(0)
@@ -137,8 +139,9 @@ const AudiobookPlayer = () => {
         filter: { album_id: id, missing: false },
       }),
       dataProvider.getAudiobookProgress(id),
+      subsonic.getAudiobook(id).catch(() => ({ json: {} })),
     ])
-      .then(([book, songs, progress]) => {
+      .then(([book, songs, progress, contents]) => {
         if (!active) return
         if (!book.data.isAudiobook) {
           setError('This album is no longer an audiobook.')
@@ -154,6 +157,8 @@ const AudiobookPlayer = () => {
           )
         setAlbum(book.data)
         setChapters(ordered)
+        setEmbeddedChapters(contents.json?.['subsonic-response']?.audiobook?.embeddedChapter || [])
+        setBookGroups(contents.json?.['subsonic-response']?.audiobook?.bookGroup || [])
         const saved = ordered.findIndex(
           (track) => track.id === progress.data.trackId,
         )
@@ -269,6 +274,34 @@ const AudiobookPlayer = () => {
     saveProgress(chapter, target)
   }
 
+  const jumpTo = (trackId, startMs) => {
+    const nextIndex = chapters.findIndex((track) => track.id === trackId)
+    if (nextIndex < 0) return
+    const seconds = startMs / 1000
+    if (nextIndex === index) {
+      seek(seconds)
+    } else {
+      if (chapter) saveProgress(chapter, audioRef.current?.currentTime || position)
+      playOnLoad.current = playing
+      resumeTime.current = seconds
+      setIndex(nextIndex)
+      setPosition(seconds)
+      setDuration(0)
+    }
+  }
+
+  const navigation = chapters.flatMap((track) => {
+    const markers = embeddedChapters.filter((marker) => marker.trackId === track.id)
+    return markers.length ? markers : [{ id: track.id, trackId: track.id, title: track.title, startMs: 0, endMs: track.duration * 1000 }]
+  })
+  const currentMarker = navigation.findIndex((marker, i) =>
+    marker.trackId === chapterId && position * 1000 >= marker.startMs &&
+    (i === navigation.length - 1 || marker.trackId !== navigation[i + 1].trackId || position * 1000 < navigation[i + 1].startMs))
+  const moveMarker = (direction) => {
+    const next = navigation[currentMarker + direction]
+    if (next) jumpTo(next.trackId, next.startMs)
+  }
+
   const onEnded = () => {
     ended.current = true
     setPlaying(false)
@@ -314,7 +347,7 @@ const AudiobookPlayer = () => {
             {album.name}
           </Typography>
           <Typography color="textSecondary">
-            {album.albumArtist} · {chapters.length} chapters
+            {album.albumArtist} · {navigation.length} chapters
           </Typography>
           <AudiobookCategoryButton album={album} />
           {permissions === 'admin' && (
@@ -329,7 +362,7 @@ const AudiobookPlayer = () => {
           <CardContent>
             <Typography variant="h5">{chapter.title}</Typography>
             <Typography color="textSecondary">
-              Chapter {index + 1} of {chapters.length}
+              Chapter {currentMarker + 1} of {navigation.length}
               {completed ? ' · Finished' : ''}
             </Typography>
             <audio
@@ -394,8 +427,8 @@ const AudiobookPlayer = () => {
             <div className={classes.controls}>
               <IconButton
                 aria-label="Previous chapter"
-                disabled={index === 0}
-                onClick={() => selectChapter(index - 1)}
+                disabled={currentMarker <= 0}
+                onClick={() => moveMarker(-1)}
               >
                 <SkipPreviousIcon />
               </IconButton>
@@ -433,8 +466,8 @@ const AudiobookPlayer = () => {
               </IconButton>
               <IconButton
                 aria-label="Next chapter"
-                disabled={index + 1 === chapters.length}
-                onClick={() => selectChapter(index + 1)}
+                disabled={currentMarker + 1 >= navigation.length}
+                onClick={() => moveMarker(1)}
               >
                 <SkipNextIcon />
               </IconButton>
@@ -463,18 +496,19 @@ const AudiobookPlayer = () => {
       <Typography variant="h5" style={{ marginTop: 32 }}>
         Chapters
       </Typography>
-      {chapters.map((track, i) => (
-        <Button
-          key={track.id}
-          className={`${classes.chapter} ${i === index ? classes.active : ''}`}
-          onClick={() => selectChapter(i)}
-        >
-          <span>
-            {i + 1}. {track.title}
-          </span>
-          <span>{formatTime(track.duration)}</span>
-        </Button>
-      ))}
+      {navigation.map((marker, i) => {
+        const book = bookGroups.find((group) => group.trackId === marker.trackId && group.startMs === marker.startMs)
+        return <React.Fragment key={`${marker.trackId}-${marker.id}`}>
+          {book && <Button className={classes.chapter} onClick={() => jumpTo(book.trackId, book.startMs)}>
+            <strong>{book.title}</strong><span>{formatTime((book.endMs - book.startMs) / 1000)}</span>
+          </Button>}
+          <Button className={`${classes.chapter} ${i === currentMarker ? classes.active : ''}`}
+            onClick={() => jumpTo(marker.trackId, marker.startMs)}>
+            <span>{i + 1}. {marker.title}</span>
+            <span>{formatTime((marker.endMs - marker.startMs) / 1000)}</span>
+          </Button>
+        </React.Fragment>
+      })}
       <Dialog
         open={confirmDelete}
         onClose={() => !deleting && setConfirmDelete(false)}

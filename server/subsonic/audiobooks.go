@@ -10,6 +10,7 @@ import (
 
 	. "github.com/Masterminds/squirrel"
 	"github.com/deluan/sanitize"
+	"github.com/navidrome/navidrome/core/audiobook"
 	"github.com/navidrome/navidrome/model"
 	"github.com/navidrome/navidrome/model/request"
 	"github.com/navidrome/navidrome/server/filter"
@@ -58,6 +59,21 @@ func (api *Router) GetAudiobook(r *http.Request) (*responses.Subsonic, error) {
 	})
 	response := newResponse()
 	response.Audiobook = api.buildAlbum(r.Context(), album, chapters)
+	for _, track := range chapters {
+		contents := audiobook.Decode(track.ChapterData)
+		for _, chapter := range contents.Chapters {
+			response.Audiobook.EmbeddedChapters = append(response.Audiobook.EmbeddedChapters, responses.EmbeddedChapter{
+				ID: chapter.ID, TrackID: track.ID, Title: chapter.Title,
+				StartMs: chapter.StartMs, EndMs: chapter.EndMs,
+			})
+		}
+		for _, book := range contents.Books {
+			response.Audiobook.BookGroups = append(response.Audiobook.BookGroups, responses.BookGroup{
+				ID: book.ID, TrackID: track.ID, Title: book.Title,
+				StartMs: book.StartMs, EndMs: book.EndMs, ChapterIDs: book.ChapterIDs,
+			})
+		}
+	}
 	return response, nil
 }
 
