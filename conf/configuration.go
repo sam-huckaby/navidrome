@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"encoding"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"net/url"
@@ -28,6 +29,7 @@ import (
 	"github.com/navidrome/navidrome/utils/run"
 	"github.com/navidrome/navidrome/utils/slice"
 	"github.com/spf13/viper"
+	"github.com/subosito/gotenv"
 )
 
 type configOptions struct {
@@ -1163,6 +1165,16 @@ func init() {
 }
 
 func InitConfig(cfgFile string, loadEnvVars bool) {
+	if loadEnvVars {
+		// The binary can be started directly from a directory containing .env.
+		// Load before resolving ND_CONFIGFILE and enabling Viper's environment lookup.
+		// Existing process environment variables take precedence over the file.
+		if err := gotenv.Load(".env"); err != nil && !errors.Is(err, os.ErrNotExist) {
+			// The parser may include the offending line (and its value) in errors.
+			logFatal("Navidrome could not load .env; check its syntax and permissions")
+		}
+	}
+
 	codecRegistry := viper.NewCodecRegistry()
 	_ = codecRegistry.RegisterCodec("ini", ini.Codec{
 		LoadOptions: ini.LoadOptions{

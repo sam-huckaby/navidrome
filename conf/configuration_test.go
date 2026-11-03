@@ -38,6 +38,68 @@ var _ = Describe("Configuration", func() {
 		}))
 	})
 
+	Describe("loading .env at startup", func() {
+		var dir string
+		BeforeEach(func() {
+			dir = GinkgoT().TempDir()
+			previousDir, err := os.Getwd()
+			Expect(err).ToNot(HaveOccurred())
+			Expect(os.Chdir(dir)).To(Succeed())
+			DeferCleanup(func() { Expect(os.Chdir(previousDir)).To(Succeed()) })
+
+			// Restore both inherited and newly loaded values after each spec.
+			for _, key := range []string{"ND_PORT", "ND_CONFIGFILE", "CF_API_TOKEN", "CF_ZONE_TOKEN"} {
+				value, present := os.LookupEnv(key)
+				DeferCleanup(func() {
+					if present {
+						Expect(os.Setenv(key, value)).To(Succeed())
+					} else {
+						Expect(os.Unsetenv(key)).To(Succeed())
+					}
+				})
+				Expect(os.Unsetenv(key)).To(Succeed())
+			}
+		})
+
+		It("loads ND settings and Cloudflare tokens before configuration is read", func() {
+			Expect(os.WriteFile(filepath.Join(dir, ".env"), []byte("ND_PORT=12345\nCF_API_TOKEN=from-file\nCF_ZONE_TOKEN=zone-from-file\n"), 0600)).To(Succeed())
+			conf.InitConfig("", true)
+			Expect(viper.GetInt("port")).To(Equal(12345))
+			Expect(os.Getenv("CF_API_TOKEN")).To(Equal("from-file"))
+			Expect(os.Getenv("CF_ZONE_TOKEN")).To(Equal("zone-from-file"))
+		})
+
+		It("keeps values provided by the process environment", func() {
+			Expect(os.WriteFile(filepath.Join(dir, ".env"), []byte("ND_PORT=12345\nCF_API_TOKEN=from-file\n"), 0600)).To(Succeed())
+			Expect(os.Setenv("ND_PORT", "45678")).To(Succeed())
+			Expect(os.Setenv("CF_API_TOKEN", "from-process")).To(Succeed())
+			conf.InitConfig("", true)
+			Expect(viper.GetInt("port")).To(Equal(45678))
+			Expect(os.Getenv("CF_API_TOKEN")).To(Equal("from-process"))
+		})
+
+		It("resolves ND_CONFIGFILE from .env before loading the configuration file", func() {
+			configFile := filepath.Join(dir, "custom.toml")
+			Expect(os.WriteFile(configFile, []byte("MusicFolder = '/from-env-file'\n"), 0600)).To(Succeed())
+			Expect(os.WriteFile(filepath.Join(dir, ".env"), []byte("ND_CONFIGFILE="+configFile+"\n"), 0600)).To(Succeed())
+			conf.InitConfig("", true)
+			Expect(viper.ConfigFileUsed()).To(Equal(configFile))
+			Expect(viper.GetString("musicfolder")).To(Equal("/from-env-file"))
+		})
+
+		It("starts without a .env file", func() {
+			Expect(func() { conf.InitConfig("", true) }).ToNot(Panic())
+		})
+
+		It("reports invalid .env syntax without exposing the offending value", func() {
+			Expect(os.WriteFile(filepath.Join(dir, ".env"), []byte("INVALID SECRET=do-not-log-this\n"), 0600)).To(Succeed())
+			Expect(func() { conf.InitConfig("", true) }).To(PanicWith(And(
+				ContainSubstring("could not load .env"),
+				Not(ContainSubstring("do-not-log-this")),
+			)))
+		})
+	})
+
 	Describe("ParseLanguages", func() {
 		It("parses single language", func() {
 			Expect(conf.ParseLanguages("en")).To(Equal([]string{"en"}))
