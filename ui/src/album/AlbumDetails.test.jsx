@@ -7,6 +7,8 @@ import { createTheme, ThemeProvider } from '@material-ui/core/styles'
 import config from '../config'
 import AlbumDetails, { Details } from './AlbumDetails'
 
+vi.mock('./MoveAlbumButton', () => ({ default: () => null }))
+
 vi.mock('../subsonic', () => ({
   default: {
     getAlbumInfo: () =>

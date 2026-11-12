@@ -48,6 +48,28 @@ be marked from their album page; audiobooks then appear in the **Audiobooks**
 section instead of the ordinary music browsing lists. Their player remembers the
 last chapter and position separately for each user.
 
+### Moving albums between libraries
+
+Administrators can choose **Move to library…** on an album or audiobook page.
+The server moves its dedicated folder (including disc subfolders, artwork and
+sidecars) to the same relative path in the selected library. Local directories
+on mounted external drives and internal disks are supported. Moves across
+filesystems copy and verify the files before removing the source. Existing
+destination folders and albums with shared folders are rejected.
+
+The move preserves track IDs, playlist references, ratings, edited album tags,
+audiobook classification and per-user listening progress. A targeted scan runs
+automatically for the affected source and destination paths. Connected
+Navidrome pages refresh after scanning; other clients see the new library
+membership when they next refresh their catalog. The destination library's
+access permissions apply to subsequent requests, including playback.
+
+Moves continue on the server if the browser leaves the page. The move dialog
+can resume polling a previously started job when reopened. If the server is
+restarted during a move, its persisted job status reports the interruption;
+inspect the source and destination folders before retrying or running a scan.
+Any `.album-move-*` directory is a retained recovery copy, not an album to import.
+
 Fingerprint lookup for missing metadata is optional. Install Chromaprint's
 `fpcalc` on the machine running Navidrome with `make setup-fingerprint` (Homebrew
 on macOS or `apt-get` on Debian/Ubuntu), then [register an AcoustID application](https://acoustid.org/new-application)

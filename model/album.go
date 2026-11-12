@@ -147,6 +147,9 @@ type AlbumRepository interface {
 	GetTagOverrides(ctx context.Context, id string) (Tags, error)
 	SetTagOverrides(ctx context.Context, id string, tags Tags) error
 	ApplyTagOverrides(ctx context.Context, album *Album) error
+	// TransferMoveMetadata transfers album-specific state after an explicit library move.
+	// Both albums must exist; call within the move transaction before deleting the old album.
+	TransferMoveMetadata(ctx context.Context, fromID, toID string) error
 	CountAll(ctx context.Context, options ...QueryOptions) (int64, error)
 	Exists(ctx context.Context, id string) (bool, error)
 	Put(ctx context.Context, m *Album) error

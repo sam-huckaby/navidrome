@@ -48,6 +48,7 @@ type Router struct {
 	imgUpload     artwork.Uploader
 	provider      external.Provider
 	quickConnect  quickconnect.QuickConnect
+	albumMoves    *albumMoveService
 }
 
 func New(ds model.DataStore, share core.Share, playlists playlistsvc.Playlists, insights metrics.Insights, libraryService core.Library, userService core.User, maintenance core.Maintenance, pluginManager PluginManager, imgUpload artwork.Uploader, provider external.Provider, quickConnect quickconnect.QuickConnect) *Router {
@@ -92,6 +93,8 @@ func (api *Router) routes() http.Handler {
 		api.addAudiobookProgressRoute(r)
 
 		r.With(adminOnlyMiddleware).Group(func(r chi.Router) {
+			r.Post("/album/{id}/move", api.startAlbumMove)
+			r.Get("/album-move/{id}", api.albumMoveStatus)
 			r.Get("/logs/stream", streamLogs)
 			api.addAudiobookCategoryRoute(r)
 			r.Delete("/audiobook/{id}", api.deleteAudiobook)

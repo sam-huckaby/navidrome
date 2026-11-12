@@ -236,6 +236,21 @@ func (r *albumRepository) SetAudiobookOverride(ctx context.Context, id string, a
 	return err
 }
 
+func (r *albumRepository) TransferMoveMetadata(ctx context.Context, fromID, toID string) error {
+	if fromID == toID {
+		return nil
+	}
+	for _, table := range []string{"album_audiobook_override", "album_tag_override", "audiobook_progress"} {
+		if _, err := r.executeSQL(ctx, Update(table).Set("album_id", toID).Where(Eq{"album_id": fromID})); err != nil {
+			return fmt.Errorf("transferring %s: %w", table, err)
+		}
+	}
+	if err := r.ReassignAnnotation(ctx, fromID, toID); err != nil {
+		return err
+	}
+	return r.CopyAttributes(ctx, fromID, toID, "created_at")
+}
+
 func (r *albumRepository) ApplyAudiobookOverride(ctx context.Context, album *model.Album) error {
 	album.IsAudiobook = slices.ContainsFunc(album.Tags.Values(model.TagReleaseType),
 		func(value string) bool { return strings.EqualFold(value, "audiobook") })

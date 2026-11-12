@@ -36,6 +36,7 @@ import { useDateLocale } from '../i18n/useDateLocale'
 import { formatFullDate, intersperse } from '../utils'
 import AlbumExternalLinks from './AlbumExternalLinks'
 import EditAlbumTags from './EditAlbumTags'
+import MoveAlbumButton from './MoveAlbumButton'
 import AudiobookCategoryButton from '../audiobook/AudiobookCategoryButton'
 import { SafeHTML } from '../common/SafeHTML'
 
@@ -341,6 +342,7 @@ const AlbumDetails = (props) => {
               )}
               <EditAlbumTags record={record} />
               <AudiobookCategoryButton album={record} />
+              <MoveAlbumButton album={record} />
             </div>
             {!isXsmall && (
               <Typography component={'div'} className={classes.recordMeta}>

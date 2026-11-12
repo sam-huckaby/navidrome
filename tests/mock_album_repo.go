@@ -33,6 +33,25 @@ type MockAlbumRepo struct {
 	CopyAttributesCalls     map[string]string // fromID -> toID
 }
 
+func (m *MockAlbumRepo) TransferMoveMetadata(ctx context.Context, fromID, toID string) error {
+	if value, ok := m.AudiobookOverrides[fromID]; ok {
+		m.AudiobookOverrides[toID] = value
+		delete(m.AudiobookOverrides, fromID)
+	}
+	if value, ok := m.TagOverrides[fromID]; ok {
+		m.TagOverrides[toID] = value
+		delete(m.TagOverrides, fromID)
+	}
+	for key, value := range m.AudiobookProgress {
+		if value.AlbumID == fromID {
+			delete(m.AudiobookProgress, key)
+			value.AlbumID = toID
+			m.AudiobookProgress[toID+":"+value.UserID] = value
+		}
+	}
+	return m.ReassignAnnotation(ctx, fromID, toID)
+}
+
 func (m *MockAlbumRepo) SetAudiobookOverride(_ context.Context, id string, audiobook bool) error {
 	if m.AudiobookOverrides == nil {
 		m.AudiobookOverrides = map[string]bool{}

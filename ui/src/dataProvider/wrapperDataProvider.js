@@ -304,6 +304,15 @@ const wrapperDataProvider = {
       method: 'PUT',
       body: JSON.stringify({ isAudiobook }),
     }).then(() => ({ data: { id } })),
+  moveAlbum: (id, libraryId) =>
+    httpClient(`${REST_URL}/album/${encodeURIComponent(id)}/move`, {
+      method: 'POST',
+      body: JSON.stringify({ libraryId }),
+    }).then(({ json }) => ({ data: json })),
+  getAlbumMove: (id) =>
+    httpClient(`${REST_URL}/album-move/${encodeURIComponent(id)}`).then(
+      ({ json }) => ({ data: json }),
+    ),
   deleteAudiobook: (id) =>
     httpClient(`${REST_URL}/audiobook/${encodeURIComponent(id)}`, {
       method: 'DELETE',

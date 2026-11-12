@@ -27,6 +27,7 @@ import { Title, useDataProvider, usePermissions, useRefresh } from 'react-admin'
 import { clearQueue } from '../actions'
 import subsonic from '../subsonic'
 import AudiobookCategoryButton from './AudiobookCategoryButton'
+import MoveAlbumButton from '../album/MoveAlbumButton'
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -350,6 +351,11 @@ const AudiobookPlayer = () => {
             {album.albumArtist} · {navigation.length} chapters
           </Typography>
           <AudiobookCategoryButton album={album} />
+          <MoveAlbumButton album={album} onStarting={async () => {
+            audioRef.current?.pause()
+            await saveQueue.current
+            currentRef.current = null
+          }} />
           {permissions === 'admin' && (
             <Button color="secondary" onClick={() => setConfirmDelete(true)}>
               Delete book

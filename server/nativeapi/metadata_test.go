@@ -92,6 +92,13 @@ var _ = Describe("Metadata API", func() {
 	})
 
 	Describe("album tag overrides", func() {
+		It("rejects non-admin album move requests and status polling", func() {
+			for _, endpoint := range []struct{ method, path string }{{"POST", "/album/al-1/move"}, {"GET", "/album-move/00000000-0000-0000-0000-000000000001"}} {
+				w := httptest.NewRecorder()
+				router.ServeHTTP(w, createAuthenticatedRequest(endpoint.method, endpoint.path, bytes.NewBufferString(`{"libraryId":2}`), userToken))
+				Expect(w.Code).To(Equal(http.StatusForbidden))
+			}
+		})
 		BeforeEach(func() {
 			files := tests.CreateMockMediaFileRepo()
 			files.SetData(model.MediaFiles{{ID: "mf-1", AlbumID: "al-1", Album: "Kid A", Title: "Everything In Its Right Place", LibraryID: 1,
