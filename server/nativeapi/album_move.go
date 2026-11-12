@@ -194,7 +194,6 @@ func prepareAlbumMove(ctx context.Context, ds model.DataStore, id string, destID
 		return nil, errors.New("album has no tracks")
 	}
 	var folder string
-	known := map[string]bool{}
 	for _, track := range tracks {
 		if track.LibraryID != source.ID || track.Missing {
 			return nil, errors.New("all album tracks must be present in one library")
@@ -206,7 +205,6 @@ func prepareAlbumMove(ctx context.Context, ds model.DataStore, id string, destID
 		if err != nil || !info.Mode().IsRegular() {
 			return nil, errors.New("album contains unavailable tracks")
 		}
-		known[filepath.Clean(filepath.FromSlash(track.Path))] = true
 		dir := path.Dir(track.Path)
 		if folder == "" {
 			folder = dir
@@ -259,10 +257,6 @@ func prepareAlbumMove(ctx context.Context, ds model.DataStore, id string, destID
 		}
 		if !entry.Type().IsRegular() {
 			return errors.New("album folder contains a non-regular file")
-		}
-		rel, _ := filepath.Rel(source.Path, file)
-		if !known[filepath.Clean(rel)] && !companionExtensions[strings.ToLower(filepath.Ext(file))] && entry.Name() != ".DS_Store" {
-			return fmt.Errorf("album folder contains an unrelated file: %s", filepath.Base(file))
 		}
 		return nil
 	})

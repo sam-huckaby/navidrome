@@ -134,15 +134,29 @@ var _ = Describe("explicit album library moves", func() {
 			old.ChapterData = `{"chapters":[{"id":"ch1","title":"Embedded chapter","startMs":0,"endMs":1000}]}`
 			Expect(ds.MediaFile().Put(ctx, &old)).To(Succeed())
 			Expect(ds.Album().SaveAudiobookProgress(ctx, model.AudiobookProgress{AlbumID: old.AlbumID, UserID: user.ID, TrackID: old.ID, PositionMs: 12345})).To(Succeed())
-			// Conflicts and unrelated files must be discovered before moving any bytes.
+			// Destination conflicts and catalogued shared folders still block a move.
 			Expect(os.MkdirAll(filepath.Join(to, "Author/Book"), 0755)).To(Succeed())
 			_, err = prepareAlbumMove(ctx, ds, old.AlbumID, 2)
 			Expect(err).To(MatchError(ContainSubstring("destination folder")))
 			Expect(os.Remove(filepath.Join(to, "Author/Book"))).To(Succeed())
-			Expect(os.WriteFile(filepath.Join(from, "Author/Book/unrelated.mp3"), []byte("other album"), 0644)).To(Succeed())
+			otherAlbum := model.Album{ID: "other-album", LibraryID: src.ID, Name: "Other album"}
+			Expect(ds.Album().Put(ctx, &otherAlbum)).To(Succeed())
+			sharedTrack := model.MediaFile{ID: "shared-track", AlbumID: otherAlbum.ID, LibraryID: src.ID, Path: "Author/Book/shared.mp3", Missing: true}
+			Expect(ds.MediaFile().Put(ctx, &sharedTrack)).To(Succeed())
 			_, err = prepareAlbumMove(ctx, ds, old.AlbumID, 2)
-			Expect(err).To(MatchError(ContainSubstring("unrelated file")))
-			Expect(os.Remove(filepath.Join(from, "Author/Book/unrelated.mp3"))).To(Succeed())
+			Expect(err).To(MatchError(ContainSubstring("shared with another album")))
+			Expect(ds.MediaFile().Delete(ctx, sharedTrack.ID)).To(Succeed())
+			// All ordinary files belong to the dedicated album directory, regardless
+			// of extension or whether they are hidden or in an extra subdirectory.
+			extraFiles := map[string]string{
+				"desktop.ini":         "[.ShellClassInfo]\nIconResource=album.ico,0\n",
+				".hidden-data":        "hidden album data",
+				"Extras/notes.custom": "extra album notes",
+			}
+			Expect(os.MkdirAll(filepath.Join(from, "Author/Book/Extras"), 0755)).To(Succeed())
+			for name, contents := range extraFiles {
+				Expect(os.WriteFile(filepath.Join(from, "Author/Book", name), []byte(contents), 0644)).To(Succeed())
+			}
 			plan, err := prepareAlbumMove(ctx, ds, old.AlbumID, 2)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(plan.folder).To(Equal("Author/Book"))
@@ -214,6 +228,11 @@ var _ = Describe("explicit album library moves", func() {
 			cover, err := os.ReadFile(filepath.Join(to, "Author/Book/cover.jpg"))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(string(cover)).To(Equal("external cover"))
+			for name, contents := range extraFiles {
+				data, err := os.ReadFile(filepath.Join(to, "Author/Book", name))
+				Expect(err).ToNot(HaveOccurred())
+				Expect(string(data)).To(Equal(contents))
+			}
 			childCtx := request.WithUser(context.Background(), model.User{ID: user.ID, Libraries: []model.Library{src}})
 			_, err = ds.MediaFile().Get(childCtx, old.ID)
 			Expect(errors.Is(err, model.ErrNotFound)).To(BeTrue())
